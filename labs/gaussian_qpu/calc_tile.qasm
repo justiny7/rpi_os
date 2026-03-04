@@ -161,8 +161,7 @@ mov id, unif
     # calc rb
     fadd r0, r2, r1
     ftoi r0, r0
-    mov r3, TILE_SIZE - 1
-    add r0, r0, r3
+    add r0, r0, TILE_SIZE - 1
     shr r0, r0, 4
     min r3, r0, max_tile_width
 

@@ -12,11 +12,12 @@
 #include "spherical_harmonics.h"
 #include "calc_bbox.h"
 #include "calc_tile.h"
+#include "render.h"
 
-// #define WIDTH 800
-// #define HEIGHT 600
-#define WIDTH 128
-#define HEIGHT 96
+#define WIDTH 640
+#define HEIGHT 480
+// #define WIDTH 128
+// #define HEIGHT 96
 #define TILE_SIZE 16
 #define NUM_TILES (WIDTH * HEIGHT / (TILE_SIZE * TILE_SIZE))
 
@@ -555,9 +556,9 @@ void count_intersections(ProjectedGaussianPtr* pg, int n,
 
 void main() {
     // const int num_gaussians = NUM_QPUS * SIMD_WIDTH * 20;
-    const int num_gaussians = NUM_QPUS * SIMD_WIDTH * 1;
+    const int num_gaussians = NUM_QPUS * SIMD_WIDTH * 2;
     const int MiB = 1024 * 1024;
-    arena_init(&data_arena, MiB * 35);
+    arena_init(&data_arena, MiB * 40);
 
     uint32_t t;
 
@@ -801,16 +802,16 @@ void main() {
             float px = (float)x + 0.5f;
             float py = (float)y + 0.5f;
 
-            float out_r = 20.0f / 255.0f;
-            float out_g = 20.0f / 255.0f;
-            float out_b = 40.0f / 255.0f;
+            float out_r = 0.0f;
+            float out_g = 0.0f;
+            float out_b = 0.0f;
 
             uint32_t tile_idx = (y / TILE_SIZE) * (WIDTH / TILE_SIZE) + (x / TILE_SIZE);
             for (uint32_t i = gaussians_touched_cpu[tile_idx]; i < gaussians_touched_cpu[tile_idx + 1]; i++) {
                 assert(pg_all.depth[i] >= 0.0f, "negative depth");
 
                 float alpha = pg_soa_all.opacity[i] * eval_gaussian_2d(px, py, pg_soa_all.screen_x[i], pg_soa_all.screen_y[i], pg_soa_all.cov2d_inv[i]);
-                if (alpha < 0.001f) continue;
+                // if (alpha < 0.001f) continue;
 
                 out_r = alpha * pg_soa_all.color[i].x + (1.0f - alpha) * out_r;
                 out_g = alpha * pg_soa_all.color[i].y + (1.0f - alpha) * out_g;
@@ -824,51 +825,42 @@ void main() {
 #endif
 
 #ifdef RENDER_QPU
-
     uart_puts("RENDERING\n");
 
-    /*
-    uart_puts("P3\n");
-    uart_putd(WIDTH);
-    uart_puts(" ");
-    uart_putd(HEIGHT);
-    uart_puts("\n255\n");
-    */
+    uint32_t render_unifs = 16;
+    Kernel k;
+    kernel_init(&k, NUM_QPUS, render_unifs,
+            render, sizeof(render));
 
-    // QPU RENDER
-    for (int y = 0; y < HEIGHT; y++) {
-        for (int x = 0; x < WIDTH; x++) {
-            float px = (float)x + 0.5f;
-            float py = (float)y + 0.5f;
+    uint32_t* output = arena_alloc_align(&data_arena, (NUM_TILES * 256) * sizeof(uint32_t), 16);
+    for (uint32_t q = 0; q < NUM_QPUS; q++) {
+        kernel_load_unif(&k, q, NUM_QPUS);
+        kernel_load_unif(&k, q, NUM_TILES);
+        kernel_load_unif(&k, q, q);
 
-            float out_r = 20.0f / 255.0f;
-            float out_g = 20.0f / 255.0f;
-            float out_b = 40.0f / 255.0f;
+        kernel_load_unif(&k, q, WIDTH / TILE_SIZE);
+        kernel_load_unif(&k, q, 1.0 * TILE_SIZE / WIDTH);
 
-            uint32_t tile_idx = (y / TILE_SIZE) * (WIDTH / TILE_SIZE) + (x / TILE_SIZE);
-            for (uint32_t i = gaussians_touched[tile_idx]; i < gaussians_touched[tile_idx + 1]; i++) {
-                assert(pg_all.depth[i] >= 0.0f, "negative depth");
+        kernel_load_unif(&k, q, TO_BUS(pg_all.cov2d_inv_x));
+        kernel_load_unif(&k, q, TO_BUS(pg_all.cov2d_inv_y));
+        kernel_load_unif(&k, q, TO_BUS(pg_all.cov2d_inv_z));
+        kernel_load_unif(&k, q, TO_BUS(pg_all.opacity));
+        kernel_load_unif(&k, q, TO_BUS(pg_all.screen_x));
+        kernel_load_unif(&k, q, TO_BUS(pg_all.screen_y));
+        kernel_load_unif(&k, q, TO_BUS(pg_all.color_r));
+        kernel_load_unif(&k, q, TO_BUS(pg_all.color_g));
+        kernel_load_unif(&k, q, TO_BUS(pg_all.color_b));
 
-                Vec3 cov2d_inv = { { pg_all.cov2d_inv_x[i], pg_all.cov2d_inv_y[i], pg_all.cov2d_inv_z[i] } };
-                float alpha = pg_all.opacity[i] * eval_gaussian_2d(px, py, pg_all.screen_x[i], pg_all.screen_y[i], cov2d_inv);
-                if (alpha < 0.001f) continue;
-
-                out_r = alpha * pg_all.color_r[i] + (1.0f - alpha) * out_r;
-                out_g = alpha * pg_all.color_g[i] + (1.0f - alpha) * out_g;
-                out_b = alpha * pg_all.color_b[i] + (1.0f - alpha) * out_b;
-            }
-
-            pixels[y * WIDTH + x] = make_color(clamp_color(out_r), clamp_color(out_g), clamp_color(out_b));
-            /*
-            uart_putd(clamp_color(out_r));
-            uart_puts(" ");
-            uart_putd(clamp_color(out_g));
-            uart_puts(" ");
-            uart_putd(clamp_color(out_b));
-            uart_puts("\n");
-            */
-        }
+        kernel_load_unif(&k, q, TO_BUS(gaussians_touched));
+        kernel_load_unif(&k, q, TO_BUS(pixels));
     }
+
+    t = sys_timer_get_usec();
+    kernel_execute(&k);
+    uint32_t render_t = sys_timer_get_usec() - t;
+    DEBUG_D(render_t);
+
+    uart_puts("DONE RENDERING\n");
     while (1);
 #endif
 

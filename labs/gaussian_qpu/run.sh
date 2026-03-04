@@ -2,5 +2,6 @@
 /opt/homebrew/opt/vc4asm/bin/vc4asm -c spherical_harmonics.c -h spherical_harmonics.h spherical_harmonics.qasm
 /opt/homebrew/opt/vc4asm/bin/vc4asm -c calc_bbox.c -h calc_bbox.h calc_bbox.qasm
 /opt/homebrew/opt/vc4asm/bin/vc4asm -c calc_tile.c -h calc_tile.h calc_tile.qasm
+/opt/homebrew/opt/vc4asm/bin/vc4asm -c render.c -h render.h render.qasm
 gmake
 rpi-install kernel-gaussian_qpu.img

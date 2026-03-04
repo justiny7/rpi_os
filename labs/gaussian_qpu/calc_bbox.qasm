@@ -107,8 +107,7 @@ mov tiles_touched, unif
 
     fadd r0, r2, r1
     ftoi r0, r0
-    mov r3, TILE_SIZE - 1
-    add r0, r0, r3
+    add r0, r0, TILE_SIZE - 1
     shr r0, r0, 4 # divide by TILE_SIZE
     min r3, r0, max_tile_width
     add temp_a0, temp_a0, r3
@@ -125,8 +124,7 @@ mov tiles_touched, unif
 
     fadd r0, r2, r1
     ftoi r0, r0
-    mov r3, 15
-    add r0, r0, r3
+    add r0, r0, TILE_SIZE - 1
     shr r0, r0, 4
     min r3, r0, max_tile_height
     add temp_b0, temp_b0, r3
