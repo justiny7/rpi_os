@@ -11,8 +11,13 @@ void* align_ptr(void* ptr, uint32_t align) {
     return (void*) ((ptr_val + align - 1) & ~(align - 1));
 }
 
-void arena_init(Arena* arena, uint32_t num_bytes) {
+void arena_init_qpu(Arena* arena, uint32_t num_bytes) {
     arena->buf = (volatile uint8_t*) TO_CPU(qpu_init(num_bytes));
+    arena->size = 0;
+    arena->capacity = num_bytes;
+}
+void arena_init(Arena* arena, void* buf, uint32_t num_bytes) {
+    arena->buf = (volatile uint8_t*) buf;
     arena->size = 0;
     arena->capacity = num_bytes;
 }

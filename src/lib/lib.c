@@ -31,14 +31,26 @@ void panic(const char* msg) {
 }
 
 void* memcpy(void* dst, const void* src, uint32_t n) {
+    // can't use 32-bit copies bc src and dst might not be the same alignment
     uint8_t* d = (uint8_t*) dst;
     const uint8_t* s = (const uint8_t*) src;
     while (n--) *d++ = *s++;
+
     return dst;
 }
 void* memset(void* dst, int val, uint32_t n) {
+    val &= 0xFF;
+
     uint8_t* d = (uint8_t*) dst;
+    while (((uintptr_t) d & 0x3) && n--) *d++ = (uint8_t) val;
+
+    uint32_t* d32 = (uint32_t*) d;
+    uint32_t val32 = (val << 24) | (val << 16) | (val << 8) | val;
+    while (n >= 4) { *d32++ = val32; n -= 4; }
+
+    d = (uint8_t*) d32;
     while (n--) *d++ = (uint8_t) val;
+
     return dst;
 }
 
@@ -47,7 +59,6 @@ void caches_enable() {
     asm volatile ("MRC p15, 0, %0, c1, c0, 0" : "=r" (r));
     r |= (1 << 12); // l1 instruction cache
     r |= (1 << 11); // branch prediction
-    r |= (1 << 2); // data cache
     asm volatile ("MCR p15, 0, %0, c1, c0, 0" :: "r" (r));
 }
 
@@ -56,7 +67,6 @@ void caches_disable() {
     asm volatile ("MRC p15, 0, %0, c1, c0, 0" : "=r" (r));
     r &= ~(1 << 12); // l1 instruction cache
     r &= ~(1 << 11); // branch prediction
-    r &= ~(1 << 2); // data cache
     asm volatile ("MCR p15, 0, %0, c1, c0, 0" :: "r" (r));
 }
 

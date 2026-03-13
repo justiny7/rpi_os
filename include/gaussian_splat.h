@@ -10,7 +10,8 @@
 
 typedef struct {
     GaussianPtr g;
-    ProjectedGaussianPtr pg, pg_all;
+    ProjectedGaussianPtr pg;
+    ProjectedGaussianPtr pg_all[2];
 
     Arena* data_arena;
     Camera* c;
@@ -18,6 +19,11 @@ typedef struct {
 
     uint32_t num_gaussians, num_intersections;
     uint32_t num_tiles, num_qpus;
+
+    Arena render_arena[2]; // sub-arenas for current/next frame
+    uint32_t active_arena;
+    uint32_t* tiles_touched[2];
+    uint32_t* gaussians_touched[2];
 } GaussianSplat;
 
 void gs_init(GaussianSplat* gs, Arena* data_arena, uint32_t* framebuffer, uint32_t num_qpus);

@@ -12,7 +12,7 @@ OS_ROOT := ../..
 
 # toolchain
 CC      := arm-none-eabi-gcc
-AS      := arm-none-eabi-as
+LD      := arm-none-eabi-ld
 OBJCOPY := arm-none-eabi-objcopy
 
 # flags (with FPU support)
@@ -33,7 +33,7 @@ OS_KERNEL_DIR  := $(OS_ROOT)/src/kernels
 # OS sources (including qasm-generated .c files)
 OS_SRCS_QASM := $(wildcard $(OS_KERNEL_DIR)/*.qasm)
 OS_SRCS_C := $(wildcard $(OS_DRV_DIR)/*.c) $(wildcard $(OS_STARTUP_DIR)/*.c) $(OS_SRCS_QASM:.qasm=.c)
-OS_SRCS_S := $(wildcard $(OS_STARTUP_DIR)/*.S)
+OS_SRCS_S := $(wildcard $(OS_DRV_DIR)/*.S) $(wildcard $(OS_STARTUP_DIR)/*.S)
 
 # lib sources
 LIB_SRCS_C := $(wildcard $(OS_LIB_DIR)/*.c)
@@ -73,7 +73,7 @@ $(BUILD_DIR)/kernel.elf: $(ALL_OBJS)
 # compile OS .S files
 $(BUILD_DIR)/%.S.o: $(OS_ROOT)/%.S
 	@mkdir -p $(dir $@)
-	$(AS) $(ASFLAGS) $< -o $@
+	$(CC) $(CFLAGS) $(ASFLAGS) -c $< -o $@
 
 # compile OS .c files
 $(BUILD_DIR)/%.c.o: $(OS_ROOT)/%.c

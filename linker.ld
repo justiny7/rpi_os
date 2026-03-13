@@ -38,4 +38,16 @@ SECTIONS
         . = ALIGN(16);
         __bss_end__ = .;
     }
+
+    /* MMU Translation Table */
+    . = ALIGN(0x4000);
+    .mmu_table (NOLOAD) : {
+        __mmu_table_start__ = .;
+        *(.mmu_table)
+        . = . + 0x4000;
+        __mmu_table_end__ = .;
+    }
+
+    /* Start of usable RAM */
+    __heap_start__ = .;
 }

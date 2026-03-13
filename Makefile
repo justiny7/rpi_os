@@ -1,6 +1,5 @@
 # toolchain
 CC      = arm-none-eabi-gcc
-AS      = arm-none-eabi-as
 LD      = arm-none-eabi-ld
 OBJCOPY = arm-none-eabi-objcopy
 
@@ -8,9 +7,6 @@ OBJCOPY = arm-none-eabi-objcopy
 CFLAGS  = -mcpu=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp -fpic -ffreestanding -O2 -Wall -Wextra -nostdlib -Iinclude -Isrc/kernels
 ASFLAGS = -mcpu=arm1176jzf-s -mfpu=vfp
 LDFLAGS = -T linker.ld -nostdlib -mfloat-abi=hard -mfpu=vfp
-
-# CFLAGS  = -mcpu=arm1176jzf-s -fpic -ffreestanding -O2 -Wall -Wextra -nostdlib -Iinclude
-# ASFLAGS = -mcpu=arm1176jzf-s
 
 # directories
 SRC_DIR   = src
@@ -24,7 +20,7 @@ HEADER_DIR = include
 # sources
 SRCS_QASM = $(wildcard $(KERNEL_DIR)/*.qasm)
 SRCS_C = $(wildcard $(SRC_DIR)/*.c) $(wildcard $(DRV_DIR)/*.c) $(wildcard $(STARTUP_DIR)/*.c) $(SRCS_QASM:.qasm=.c)
-SRCS_S = $(wildcard $(SRC_DIR)/*.S) $(wildcard $(STARTUP_DIR)/*.S)
+SRCS_S = $(wildcard $(SRC_DIR)/*.S) $(wildcard $(DRV_DIR)/*.S) $(wildcard $(STARTUP_DIR)/*.S)
 SRCS_LIB_C = $(wildcard $(LIB_DIR)/*.c)
 SRCS_LIB_S = $(wildcard $(LIB_DIR)/*.S)
 
@@ -51,7 +47,7 @@ $(BUILD_DIR)/kernel.elf: $(OBJS) $(LIB_OBJS)
 # asm rules
 $(BUILD_DIR)/%.S.o: %.S
 	@mkdir -p $(dir $@)
-	$(AS) $(ASFLAGS) $< -o $@
+	$(CC) $(CFLAGS) $(ASFLAGS) -c $< -o $@
 
 # c rules
 $(BUILD_DIR)/%.c.o: %.c

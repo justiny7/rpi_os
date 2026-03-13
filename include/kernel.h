@@ -18,6 +18,8 @@ void kernel_init(Kernel* kernel,
         uint32_t num_qpus, uint32_t num_unifs,
         uint32_t* code, uint32_t code_len);
 void kernel_execute(Kernel* kernel);
+void kernel_execute_async(Kernel* kernel);
+void kernel_wait(Kernel* kernel);
 void kernel_free(Kernel* kernel);
 
 void kernel_reset_unifs(Kernel* kernel);

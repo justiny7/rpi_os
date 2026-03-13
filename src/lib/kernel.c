@@ -12,7 +12,7 @@ void kernel_init(Kernel* kernel,
         num_qpus * sizeof(uint32_t) +             // unif counter
         48;                                       // padding
 
-    arena_init(&kernel->arena, total_size);
+    arena_init_qpu(&kernel->arena, total_size);
 
     kernel->num_qpus = num_qpus;
     kernel->num_unifs = num_unifs;
@@ -33,6 +33,14 @@ void kernel_init(Kernel* kernel,
 
 void kernel_execute(Kernel* kernel) {
     qpu_execute(kernel->num_qpus, kernel->mbox_msg);
+    qpu_wait(kernel->num_qpus);
+}
+
+void kernel_execute_async(Kernel* kernel) {
+    qpu_execute(kernel->num_qpus, kernel->mbox_msg);
+}
+void kernel_wait(Kernel* kernel) {
+    qpu_wait(kernel->num_qpus);
 }
 
 void kernel_free(Kernel* kernel) {

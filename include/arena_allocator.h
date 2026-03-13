@@ -9,7 +9,8 @@ typedef struct {
     uint32_t capacity;
 } Arena;
 
-void arena_init(Arena* arena, uint32_t num_bytes);
+void arena_init_qpu(Arena* arena, uint32_t num_bytes);
+void arena_init(Arena* arena, void* buf, uint32_t num_bytes);
 
 void* arena_alloc(Arena* arena, uint32_t num_bytes);
 void* arena_alloc_align(Arena* arena, uint32_t num_bytes, uint32_t align);

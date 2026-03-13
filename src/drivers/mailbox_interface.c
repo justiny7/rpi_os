@@ -1,5 +1,6 @@
 #include "mailbox_interface.h"
 #include "lib.h"
+#include "mmu.h"
 
 static uint32_t mbox_buf[MBOX_BUFFER_SIZE] __attribute__((aligned(16)));
 
@@ -8,11 +9,11 @@ bool mbox_get_property(uint32_t* msg) {
     uint32_t addr = (uint32_t) msg;
     assert((addr & 0xF) == 0, "Mailbox address must be 16-byte aligned");
 
-    mem_barrier_dsb();
+    mmu_flush_dcache();
     mbox_write(MB_TAGS_ARM_TO_VC, addr);
     mbox_read(MB_TAGS_ARM_TO_VC);
+    mmu_flush_dcache();
 
-    mem_barrier_dsb();
     return msg[1] == MBOX_REQUEST_SUCCESS;
 }
 
@@ -156,11 +157,11 @@ uint32_t mbox_release_memory(uint32_t handle) {
 /* FRAME BUFFER */
 
 // Combined framebuffer init - sets all properties in one mailbox call
-void mbox_framebuffer_init(uint32_t width, uint32_t height, uint32_t depth,
-                           uint32_t** fb_ptr, uint32_t* fb_size, uint32_t* pitch) {
+void mbox_framebuffer_init(uint32_t width, uint32_t height, uint32_t vwidth, uint32_t vheight,
+        uint32_t depth, uint32_t** fb_ptr, uint32_t* fb_size, uint32_t* pitch) {
     assert(mbox_get_property_batch(32,
         MBOX_TAG_SET_PHYSICAL_WIDTH_HEIGHT, 8, 0, width, height,
-        MBOX_TAG_SET_VIRTUAL_WIDTH_HEIGHT, 8, 0, width, height,
+        MBOX_TAG_SET_VIRTUAL_WIDTH_HEIGHT, 8, 0, vwidth, vheight,
         MBOX_TAG_SET_VIRTUAL_OFFSET, 8, 0, 0, 0,
         MBOX_TAG_SET_DEPTH, 4, 0, depth,
         MBOX_TAG_SET_PIXEL_ORDER, 4, 0, PIXEL_ORDER_BGR,

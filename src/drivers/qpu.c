@@ -1,8 +1,7 @@
 #include "qpu.h"
 #include "lib.h"
+#include "mmu.h"
 #include "mailbox_interface.h"
-
-#include "uart.h"
 
 uint32_t qpu_init(uint32_t num_bytes) {
     assert(!mbox_set_enable_qpu(1), "Failed QPU enable");
@@ -23,6 +22,8 @@ void qpu_free(uint32_t handle) {
 }
 
 void qpu_execute(uint32_t num_qpus, uint32_t* mail) {
+    mmu_flush_dcache();
+
     PUT32(V3D_DBCFG, 0); // Disallow IRQ
     PUT32(V3D_DBQITE, 0); // Disable IRQ
     PUT32(V3D_DBQITC, -1); // Resets IRQ flags
@@ -37,7 +38,10 @@ void qpu_execute(uint32_t num_qpus, uint32_t* mail) {
         PUT32(V3D_SRQPC, mail[q * 2 + 1]);
     }
 
+    mmu_flush_dcache();
+}
+
+void qpu_wait(uint32_t num_qpus) {
     // Busy wait polling
     while (((GET32(V3D_SRQCS) >> 16) & 0xFF) != num_qpus);
-
 }

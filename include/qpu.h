@@ -24,6 +24,7 @@ enum {
 
 uint32_t qpu_init(uint32_t num_bytes);
 void qpu_free(uint32_t handle);
+void qpu_wait(uint32_t num_qpus);
 void qpu_execute(uint32_t num_qpus, uint32_t* mail);
 
 #endif

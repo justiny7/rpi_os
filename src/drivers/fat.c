@@ -18,7 +18,7 @@ static int memcmp(const void *s1, const void *s2, int n)
 }
 
 // get the end of bss segment from linker
-extern unsigned char __bss_end__[];
+extern unsigned char __heap_start__[];
 
 static unsigned int partitionlba = 0;
 
@@ -67,10 +67,10 @@ typedef struct {
  */
 int fat_getpartition(void)
 {
-    unsigned char *mbr=__bss_end__;
-    bpb_t *bpb=(bpb_t*)__bss_end__;
+    unsigned char *mbr=__heap_start__;
+    bpb_t *bpb=(bpb_t*)__heap_start__;
     // read the partitioning table
-    if(sd_readblock(0,__bss_end__,1)) {
+    if(sd_readblock(0,__heap_start__,1)) {
         // check magic
         if(mbr[510]!=0x55 || mbr[511]!=0xAA) {
             uart_puts("ERROR: Bad magic in MBR\n");
@@ -87,7 +87,7 @@ int fat_getpartition(void)
         //partitionlba=*((unsigned int*)((unsigned long)&_end+0x1C6));
         partitionlba=mbr[0x1C6] + (mbr[0x1C7]<<8) + (mbr[0x1C8]<<16) + (mbr[0x1C9]<<24);
         // read the boot record
-        if(!sd_readblock(partitionlba,__bss_end__,1)) {
+        if(!sd_readblock(partitionlba,__heap_start__,1)) {
             uart_puts("ERROR: Unable to read boot record\n");
             return 0;
         }
@@ -109,8 +109,8 @@ int fat_getpartition(void)
  */
 unsigned int fat_getcluster(char *fn, unsigned int *file_size)
 {
-    bpb_t *bpb=(bpb_t*)__bss_end__;
-    fatdir_t *dir=(fatdir_t*)(__bss_end__+512);
+    bpb_t *bpb=(bpb_t*)__heap_start__;
+    fatdir_t *dir=(fatdir_t*)(__heap_start__+512);
     unsigned int root_sec, s;
     // find the root directory's LBA (FAT32)
     root_sec=(bpb->spf32*bpb->nf)+bpb->rsc;
@@ -164,9 +164,9 @@ unsigned int fat_getcluster(char *fn, unsigned int *file_size)
 char *fat_readfile(unsigned int cluster, unsigned int *bytes_read)
 {
     // BIOS Parameter Block
-    bpb_t *bpb=(bpb_t*)__bss_end__;
+    bpb_t *bpb=(bpb_t*)__heap_start__;
     // FAT32 table
-    unsigned int *fat32=(unsigned int*)(__bss_end__+bpb->rsc*512);
+    unsigned int *fat32=(unsigned int*)(__heap_start__+bpb->rsc*512);
     // Data pointers
     unsigned int data_sec;
     unsigned char *data, *ptr;
@@ -191,9 +191,9 @@ char *fat_readfile(unsigned int cluster, unsigned int *bytes_read)
     uart_puts("\n");
     // load FAT table
     unsigned int fat_sectors = bpb->spf32 + bpb->rsc;
-    unsigned int s = sd_readblock(partitionlba+1,(unsigned char*)__bss_end__+512,fat_sectors);
+    unsigned int s = sd_readblock(partitionlba+1,(unsigned char*)__heap_start__+512,fat_sectors);
     // end of FAT in memory
-    data=ptr=__bss_end__+512+s;
+    data=ptr=__heap_start__+512+s;
     // iterate on cluster chain
     // (FAT32 is actually FAT28 - upper 4 bits must be masked)
     while(cluster>1 && cluster<0x0FFFFFF8) {
