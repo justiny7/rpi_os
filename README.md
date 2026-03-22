@@ -1,2 +1,1 @@
-### Gaussian Splatting on a Raspberry Pi Zero W
-Stanford CS 140E final project
+### Bare metal OS on Raspberry Pi Zero
