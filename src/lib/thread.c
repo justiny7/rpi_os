@@ -1,5 +1,6 @@
 #include "thread.h"
 #include "lib.h"
+#include "armv6_asm.h"
 
 void thread_init(volatile Thread* t, void (*fn)(void*)) {
     volatile uint8_t* stack_top = t->memory + STACK_MEM_SIZE;

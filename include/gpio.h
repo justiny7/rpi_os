@@ -1,12 +1,14 @@
 #ifndef GPIO_H
 #define GPIO_H
 
+#include "vm.h"
+
 #include <stdint.h>
 #include <stdbool.h>
 
 #define MAX_PIN_NUM 53
 
-#define GPIO_BASE 0x20200000
+#define GPIO_BASE (0x20200000 | KERNEL_VBASE)
 #define REG_SIZE_BYTES 4
 #define REG_SIZE_BITS 32
 

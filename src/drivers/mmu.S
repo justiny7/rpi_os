@@ -2,7 +2,7 @@
 
 // void mmu_init() - disable extended pages, set translation table base, configure domain 0
 .global mmu_init
-.extern __mmu_table_start__
+.extern __l1_page_table_start__
 mmu_init:
     INV_ALL_CACHES(r0)
     INV_TLB(r0)
@@ -10,10 +10,11 @@ mmu_init:
 
     PREFETCH_FLUSH(r0)
     
-    mov r1, #1
-    DOMAIN_CTRL_WR(r1) // set for domain 0 to client mode
+    mov r1, #3
+    DOMAIN_CTRL_WR(r1) // set for domain 0 to manager mode
 
-    ldr r1, =__mmu_table_start__
+    ldr r1, =__l1_page_table_start__
+    bic r1, r1, #0xC0000000  // convert to paddr
     mov r2, #0
     TTBR0_SET(r1)
     TTBR1_SET(r2)
@@ -38,7 +39,6 @@ mmu_enable:
 
     INV_ICACHE(r0)
     DSB(r0)
-
     orr r1, r1, #1    // turn on MMU (turn on bit 0)
     CONTROL_REG1_WR(r1)
     PREFETCH_FLUSH(r0)
@@ -51,6 +51,20 @@ mmu_enable:
 // void mmu_disable()
 .global mmu_disable
 mmu_disable:
+    CLEAN_INV_DCACHE(r0)
+    DSB(r0)
+
+    CONTROL_REG1_RD(r1)
+    bic r1, r1, #1   // turn off MMU (clear bit 0)
+    CONTROL_REG1_WR(r1)
+    PREFETCH_FLUSH(r0)
+
+    INV_ICACHE(r0)
+    DSB(r0)
+
+    FLUSH_BTB(r0)
+    PREFETCH_FLUSH(r0)
+
     bx lr
 
 // void mmu_enable_caches()
@@ -77,6 +91,21 @@ mmu_flush_dcache:
 // void mmu_flush_caches()
 
 // void mmu_disable_caches()
+
+// void mmu_sync_ptes()
+.global mmu_sync_ptes
+mmu_sync_ptes:
+    CLEAN_INV_DCACHE(r0)
+    INV_ICACHE(r0)
+    DSB(r0)
+
+    INV_TLB(r0)
+    DSB(r0)
+
+    FLUSH_BTB(r0)
+    PREFETCH_FLUSH(r0)
+
+    bx lr
 
 // void set_cp15_ctrl_reg(CP15CtrlReg reg)
 .global set_cp15_ctrl_reg

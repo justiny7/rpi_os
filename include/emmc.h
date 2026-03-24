@@ -3,6 +3,8 @@
 // Raspberry Pi EMMC driver adapted from Low Level Devel:
 // https://github.com/rockytriton/LLD
 
+#include "vm.h"
+
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -152,7 +154,7 @@ typedef struct  {
 #define SD_CARD_REMOVAL         (1 << 7)
 #define SD_CARD_INTERRUPT       (1 << 8)
 
-#define EMMC_BASE 0x20300000
+#define EMMC_BASE (0x20300000 | KERNEL_VBASE)
 
 #define EMMC ((emmc_regs *)EMMC_BASE)
 

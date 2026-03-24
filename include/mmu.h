@@ -3,42 +3,6 @@
 
 #include <stdint.h>
 
-#define NUM_PAGES 4096
-#define PERIPHERAL_PAGE 0x200
-
-typedef union {
-    struct {
-        uint32_t tag  : 2;  // always 0b10
-        uint32_t B    : 1;  // bufferable
-        uint32_t C    : 1;  // cacheable
-        uint32_t XN   : 1;  // execute-never
-        uint32_t dom  : 4;  // domain
-        uint32_t IMP  : 1;  // implementation-defined
-        uint32_t AP   : 2;  // access perms
-        uint32_t TEX  : 3;  // type extensions
-        uint32_t APX  : 1;  // access perm extensions
-        uint32_t S    : 1;  // shareable (multi-core)
-        uint32_t nG   : 1;  // non-global
-        uint32_t sup  : 1;  // regular section or supersection
-        uint32_t sbz  : 1;  // should be 0
-        uint32_t addr : 12; // physical address
-    };
-    uint32_t val;
-} PageTableEntry;
-
-enum {
-    AP_RW        = 0b11,
-    AP_NO_ACCESS = 0b00,
-    AP_RD        = 0b10
-};
-
-enum {
-    DOM_no_access = 0b00,
-    DOM_client    = 0b01,
-    DOM_reserved  = 0b10,
-    DOM_manager   = 0b11
-};
-
 // arm-1176, B-45
 typedef union {
     struct {
@@ -74,8 +38,6 @@ typedef union {
 } CP15CtrlReg;
 
 
-void page_table_init();
-
 void mmu_init();
 void mmu_enable();
 void mmu_disable();
@@ -84,6 +46,8 @@ void mmu_enable_caches();
 void mmu_disable_caches();
 void mmu_flush_dcache();
 // void mmu_flush_caches();
+
+void mmu_sync_ptes();
 
 void set_cp15_ctrl_reg(CP15CtrlReg reg);
 CP15CtrlReg get_cp15_ctrl_reg();

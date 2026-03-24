@@ -19,6 +19,7 @@ void gpio_select(Pin pin, PinMode mode) {
 
     const uint32_t bit_offset = PINMODE_BITS * (p_num % 10);
 
+
     uint32_t value = GET32(register_base);
     value &= ~(0x7U << bit_offset);
     value |= (mode << bit_offset);

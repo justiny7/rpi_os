@@ -1,378 +1,111 @@
-#include "lib.h"
-#include "math.h"
-#include "mmu.h"
-#include "sys_timer.h"
-#include "gaussian_splat.h"
-#include "mailbox_interface.h"
-#include "fat.h"
-#include "display_font.h"
 #include "uart.h"
-#include "thread.h"
+#include "lib.h"
+#include "page_alloc.h"
+#include "vm.h"
+#include "kmem.h"
 
-// #define WIDTH 1024
-// #define HEIGHT 1024
-#define WIDTH 1280
-#define HEIGHT 720
-// #define WIDTH 640
-// #define HEIGHT 480
-// #define WIDTH 256
-// #define HEIGHT 192
-// #define WIDTH 128
-// #define HEIGHT 96
-
-#define NUM_QPUS 12
-#define INSTRUCTIONS_VIRTUAL_OFFSET (HEIGHT * 2)
-
-#define VERBOSE
-
-const int MiB = 1024 * 1024;
-Arena data_arena;
-GaussianSplat gs;
-FontSettings fs;
-bool rendering, spiral;
-uint32_t instructions;
-
-uint32_t* pixels;
-uint32_t ply_cluster, filesize;
-float cur_radius, calc_radius;
-float theta, phi_t;
-
-volatile Thread menu_thread, render_thread, instructions_thread;
-volatile Thread* current_thread;
-volatile Thread* next_thread;
-
-void __attribute__((interrupt("IRQ"))) irq_handler();
-void __attribute__((interrupt("SWI"))) svc_handler();
-void start_thread(volatile uint32_t* sp);
-uint32_t get_sp();
-
-// UART interrupt to stop rendering + zoom controls
-void scheduler() {
-    if (uart_has_interrupt()) {
-        uint32_t aux_irq = GET32(AUX_IRQ);
-        if (aux_irq & 1) {
-            uint32_t iir = GET32(AUX_MU_IIR_REG);
-            if (((iir >> 1) & 3) == 0b10) {
-                uint8_t c = GET32(AUX_MU_IO_REG) & 0xFF;
-                if (instructions != INSTRUCTIONS_VIRTUAL_OFFSET) {
-                    // instructions thread
-                    if (c == 'h') {
-                        // reset virtual offset
-                        mbox_framebuffer_set_virtual_offset(0, instructions);
-                        instructions = INSTRUCTIONS_VIRTUAL_OFFSET;
-
-                        if (rendering) {
-                            next_thread = &render_thread;
-                        } else {
-                            next_thread = &menu_thread;
-                            uart_disable_interrupts();
-                            mem_barrier_dsb();
-                        }
-                        return;
-                    }
-
-                } else if (rendering) {
-                    // rendering thread
-                    if (c == 'q') {
-                        rendering = false;
-                        next_thread = &menu_thread;
-
-                        uart_disable_interrupts();
-                        mem_barrier_dsb();
-                        return;
-                    }
-                    if (c == 'h') {
-                        uint32_t _;
-                        mbox_framebuffer_get_virtual_offset(&_, &instructions);
-                        mbox_framebuffer_set_virtual_offset(0, INSTRUCTIONS_VIRTUAL_OFFSET);
-                        next_thread = &instructions_thread;
-                        return;
-                    }
-
-                    if (c == ' ') {
-                        cur_radius = calc_radius;
-                    } else if (c == 'i') {
-                        cur_radius = max(cur_radius * 0.9f, calc_radius * 0.66);
-                    } else if (c == 'k') {
-                        cur_radius = min(cur_radius * 1.1f, calc_radius / 0.66);
-                    } else if (c == 'c') {
-                        spiral = !spiral;
-                        if (phi_t > 0.5 * M_PI) {
-                            phi_t = phi_t * 2 - 0.5 * M_PI;
-                        }
-                    }
-
-                    if (!spiral) {
-                        if (c == 'w') {
-                            phi_t = max(phi_t - 0.1f, -0.5 * M_PI);
-                        } else if (c == 's') {
-                            phi_t = min(phi_t + 0.1f, 0.5 * M_PI);
-                        } else if (c == 'a') {
-                            theta += 0.1;
-                        } else if (c == 'd') {
-                            theta -= 0.1;
-                        }
-                    }
-                }
-            }
-        }
-
-        next_thread = current_thread;
-    } else {
-        // only cooperative switches are menu -> render and menu -> instructions
-        if (rendering) {
-            next_thread = &render_thread;
-        } else {
-            uint32_t _;
-            mbox_framebuffer_get_virtual_offset(&_, &instructions);
-            mbox_framebuffer_set_virtual_offset(0, INSTRUCTIONS_VIRTUAL_OFFSET);
-
-            uart_enable_rx_interrupts();
-            mem_barrier_dsb();
-            next_thread = &instructions_thread;
-        }
-    }
-}
-
-Vec3 spiral_camera(Vec3 center, float radius) {
-    static const float dt = 0.1f;
-    static const float omega = 4.0f;
-
-    float phi = M_PI * 0.5f + (M_PI * 0.25f) * sinf(phi_t);
-    if (spiral) {
-        theta += omega * dt;
-        phi_t += dt;
-        while (phi_t > M_PI) phi_t -= 2.0f * M_PI;
-    }
-
-    Vec3 p;
-    p.x = center.x + radius * sinf(phi) * cosf(theta);
-    p.y = center.y + radius * cosf(phi);
-    p.z = center.z + radius * sinf(phi) * sinf(theta);
-
-    return p;
-}
-
-void instructions_loop() {
-    // display instructions
-    const char* s[] = {
-        "INSTRUCTIONS",
-        "- In menu, use I/K + Enter to select a model, or Q to quit",
-        "- In renderer, use I/K to zoom, Space to reset zoom,",
-        "  C + WASD to toggle camera control, and Q to quit to menu",
-        "- Use H to toggle this help menu",
-    };
-
-    for (uint32_t i = 0; i < 5; i++) {
-        uint32_t l = 0;
-        for (; s[i][l]; l++);
-
-        display_text(&fs, (const uint8_t*) s[i], l,
-                i * (FONT_HEIGHT + 1) * fs.scale + INSTRUCTIONS_VIRTUAL_OFFSET, 0);
-    }
-
-    // just an infinite loop bc it's just switching a
-    // virtual framebuffer offset (handled in scheduler)
-    while (1);
-}
-
-void render_loop() {
-#ifdef VERBOSE
-    uart_puts("Reading PLY...\n");
-#endif
-
-    Vec3 center;
-    gs_read_ply(&gs, ply_cluster, filesize, &center, &calc_radius);
-
-    Vec3 cam_up = { { 0.0f, 1.0f, 0.0f } };
-
-#ifdef VERBOSE
-    uart_puts("Initializing Camera...\n");
-#endif
-    Camera* c = arena_alloc_align(&data_arena, sizeof(Camera), 16);
-
-    // enable UART interrupts (don't wanna interrupt SD card reading)
-    // also clear cache in case user was inputting stuff
-    uart_flush_tx();
-    uart_clear_fifos();
-    uart_enable_rx_interrupts();
-    mem_barrier_dsb();
-
-    // Orbit around sphere
-    cur_radius = calc_radius;
-    spiral = true;
-    theta = phi_t = 0.0f;
-    while (1) {
-#ifdef VERBOSE
-        uint32_t t = sys_timer_get_usec();
-#endif
-
-        Vec3 cam_pos = spiral_camera(center, cur_radius);
-        init_camera(c, cam_pos, center, cam_up, WIDTH, HEIGHT);
-
-        gs_render(&gs, c);
-
-#ifdef VERBOSE
-        uint32_t render_t = sys_timer_get_usec() - t;
-        uart_puts("Render time: ");
-        uart_putd(render_t);
-        uart_puts("\n");
-#endif
-    }
-}
-
-void flip_row(FontSettings* fs, uint32_t row) {
-    for (uint32_t i = 0; i < FONT_HEIGHT * fs->scale; i++) {
-        for (uint32_t j = 0; j < WIDTH; j++) {
-            uint32_t idx = (row * (FONT_HEIGHT + 1) * fs->scale + i) * WIDTH + j;
-            pixels[idx] ^= 0x00FFFFFF;
-        }
-    }
-
-    mmu_flush_dcache();
-}
-void menu_loop() {
-    uint32_t num_files;
-    uint8_t* lfns;
-    fatdir_t* ply_files;
-    fat_get_plys(&ply_files, &lfns, &num_files);
-
-    fs.scale = 2;
-    fs.height = HEIGHT * 3;
-    fs.width = WIDTH;
-    fs.color = 0x00FFFFFF;
-    fs.fb = pixels;
-
-    // display instructions in the beginning
-    thread_yield();
-
-    while (1) {
-        // re-initialize render thread
-        thread_init(&render_thread, render_loop);
-
-        for (uint32_t i = 0; i < num_files; i++) {
-            uint32_t offset = i * MAX_LFN_LEN;
-            if (lfns[offset]) {
-                int l = 0;
-                for (; lfns[offset + l] && lfns[offset + l] != '.'; l++);
-                display_text(&fs, &lfns[offset], l, i * (FONT_HEIGHT + 1) * fs.scale, 0);
-            } else {
-                for (int j = 0; j < 8; j++) {
-                    if (ply_files[i].name[j] >= 'A' && ply_files[i].name[j] <= 'Z') {
-                        ply_files[i].name[j] += 'a' - 'A';
-                    }
-                }
-                display_text(&fs, ply_files[i].name, 8, i * (FONT_HEIGHT + 1) * fs.scale, 0);
-            }
-        }
-
-        uint32_t selection = 0;
-        flip_row(&fs, selection);
-
-        while (1) {
-            uint8_t input = uart_getc();
-
-            if (input == 'k') {
-                flip_row(&fs, selection);
-                selection = (selection + 1) % num_files;
-                flip_row(&fs, selection);
-            } else if (input == 'i') {
-                flip_row(&fs, selection);
-                selection = (selection + num_files - 1) % num_files;
-                flip_row(&fs, selection);
-            } else if (input == 'h') {
-                thread_yield();
-            } else if (input == '\n') {
-                break;
-            } else if (input == 'q') {
-                rpi_reset();
-            }
-        }
-
-        ply_cluster = fatdir_get_cluster(&ply_files[selection]);
-        filesize = ply_files[selection].size;
-        rendering = true;
-
-        uint32_t heap_size = heap_get_size();
-        uint32_t data_size = data_arena.size;
-
-        thread_yield();
-
-        // wait for QPU kernels to finish
-        qpu_block();
-
-        // reset memory
-        free_to(heap_size);
-        arena_dealloc_to(&data_arena, data_size);
-        gs_reset_arenas(&gs);
-
-        mbox_framebuffer_set_virtual_offset(0, 0);
-        memset(pixels, 0, HEIGHT * WIDTH * 2 * sizeof(uint32_t));
-        mmu_flush_dcache();
-    }
-}
+#define DEBUG
+#include "debug.h"
 
 void main() {
-    // Install ISRs
-    extern uint32_t interrupt_handler_ptr;
-    interrupt_handler_ptr = (uint32_t) irq_handler;
+    uint32_t sp;
+    asm volatile ("mov %0, sp" :: "r"(sp));
+    printk("main sp: %x, %b, %d\n", sp, sp, sp);
 
-    extern uint32_t swi_handler_ptr;
-    swi_handler_ptr = (uint32_t) svc_handler;
+    // uint32_t addr = 0x21000000;
+    // GET32(addr);
 
-    // Init MMU
-    page_table_init();
-    mmu_init();
-    mmu_enable();
+    /*
+    void* pg1 = page_alloc(0);
+    void* pg2 = page_alloc(0);
+    printk("pg1: %d, pg2: %d\n", (uint32_t) pg1, (uint32_t) pg2);
 
-    // Enable dcache, icache, BTB
-    mmu_enable_caches();
+    uint32_t paddr = 0x00100000, vaddr = 0x00200000;
+    map_page_4k(paddr, paddr);
 
-    // Overclock
-    mbox_set_clock_rate(MBOX_CLK_ARM, mbox_get_max_clock_rate(MBOX_CLK_ARM));
-    mbox_set_clock_rate(MBOX_CLK_V3D, mbox_get_max_clock_rate(MBOX_CLK_V3D));
+    PUT32(paddr, 0xdeafbeef);
+    printk("before map: %x\n", GET32(paddr));
 
-    // Init heap and data arena
-#ifdef VERBOSE
-    uart_puts("Initializing heap & data arena...\n");
-#endif
-    heap_init(70 * MiB);
-    arena_init_qpu(&data_arena, 350 * MiB);
+    map_page_4k(vaddr, paddr);
 
-    // Init framebuffer
-#ifdef VERBOSE
-    uart_puts("Initializing framebuffer...\n");
-#endif
+    PUT32(vaddr, 0xFEEDFACE);
+    printk("after map: %x\n", GET32(paddr));
+    */
 
-    uint32_t* fb;
-    mbox_framebuffer_init(WIDTH, HEIGHT, WIDTH, HEIGHT * 3, 32, &fb); // double buffer
-    pixels = (uint32_t*) TO_CPU(fb);
+    // printk("%x\n", GET32(0x00BFF800));
+    // printk("%x\n", GET32(0x00C00000));
 
-#ifdef VERBOSE
-    uart_puts("Initializing SD card / FAT32...\n");
-#endif
-    // Init SD card / FAT32
-    fat_init();
-    
-#ifdef VERBOSE
-    uart_puts("Initializing font...\n");
-#endif
-    // Initialize font
-    font_init();
+    const int N = 10;
+    void* addr[N];
+    for (int i = 0; i < 227325; i++) {
+        void* v = kmalloc(2048);
 
-    // Initialize Gaussian splat
-#ifdef VERBOSE
-    uart_puts("Initializing Gaussian splat...\n");
-#endif
-    gs_init(&gs, &data_arena, pixels, NUM_QPUS);
+        if (i < N) {
+            addr[i] = v;
+            printk("%x\n", addr[i]);
+        }
 
-    // Init threads
-    thread_init(&menu_thread, menu_loop);
-    thread_init(&instructions_thread, instructions_loop);
+        /*
+        if (i > 122000) {
+            printk("%x\n", v);
+            printk("%x\n", __pa(v));
+            printk("%d\n", i);
+        }
+        */
+    }
+    kfree(addr[0]);
+    kfree(addr[1]);
+    printk("freeing caches: %d\n", kmem_shrink_caches_all());
 
-    current_thread = &menu_thread;
-    start_thread(current_thread->sp);
+    printk("ALLOC\n");
+    void* addr1 = kmalloc(32);
+    printk("32: %x\n", addr1);
 
-    // should never get here
-    rpi_reset();
+    printk("NO ALLOC\n");
+    void* addr2 = kmalloc(32);
+    printk("32: %x\n", addr2);
+
+    printk("ALLOC\n");
+    void* addr3 = kmalloc(128);
+    printk("128: %x\n", addr3);
+
+    printk("NO ALLOC\n");
+    void* addr4 = kmalloc(128);
+    printk("128: %x\n", addr4);
+
+    for (int i = 1; i < N; i++) {
+        kfree(addr[i]);
+    }
+    printk("freeing caches: %d\n", kmem_shrink_caches_all());
+
+    printk("ALLOC\n");
+    void* addr5 = kmalloc(2048);
+    printk("2048: %x\n", addr5);
+
+    printk("NO ALLOC\n");
+    void* addr6 = kmalloc(2048);
+    printk("2048: %x\n", addr6);
+
+    printk("ALLOC\n");
+    void* addr7 = kmalloc(2048);
+    printk("2048: %x\n", addr7);
+
+    kfree(addr5);
+    kfree(addr6);
+
+    printk("NO ALLOC\n");
+    void* addr8 = kmalloc(2048);
+    printk("2048: %x\n", addr8);
+
+    printk("NO ALLOC\n");
+    void* addr9 = kmalloc(2048);
+    printk("2048: %x\n", addr9);
+
+    printk("NO ALLOC\n");
+    void* addr10 = kmalloc(2048);
+    printk("2048: %x\n", addr10);
+
+    printk("ALLOC\n");
+    void* addr11 = kmalloc(2048);
+    printk("2048: %x\n", addr11);
 }

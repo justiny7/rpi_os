@@ -1,4 +1,3 @@
-
 # void PUT32(uint32_t addr, uint32_t val)
 .global PUT32
 PUT32:
@@ -29,17 +28,4 @@ PUT8:
 .global GET8
 GET8:
     ldrb r0, [r0]
-    bx lr
-
-# void mem_barrier_dsb()
-.global mem_barrier_dsb
-mem_barrier_dsb:
-    mcr p15, 0, r0, c7, c10, 4
-    bx lr
-
-# void mem_barrier_dmb()
-.global mem_barrier_dmb
-mem_barrier_dmb:
-    mov r0, #0
-    mcr p15, 0, r0, c7, c10, 5
     bx lr

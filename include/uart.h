@@ -1,10 +1,12 @@
 #ifndef UART_H
 #define UART_H
 
+#include "vm.h"
+
 #include <stdint.h>
 #include <stdbool.h>
 
-#define UART_BASE 0x20215000
+#define UART_BASE (0x20215000 | KERNEL_VBASE)
 
 #define UART_TX_PIN 14
 #define UART_RX_PIN 15

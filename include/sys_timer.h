@@ -1,9 +1,10 @@
 #ifndef SYS_TIMER_H
 #define SYS_TIMER_H
 
+#include "vm.h"
 #include <stdint.h>
 
-#define SYS_TIMER_BASE 0x20003000
+#define SYS_TIMER_BASE (0x20003000 + KERNEL_VBASE)
 
 enum {
     SYS_TIMER_CS = SYS_TIMER_BASE,
