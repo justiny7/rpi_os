@@ -72,7 +72,7 @@ enum {
 };
 
 void l1_page_table_init();
-void* l2_page_table_init();
+volatile void* l2_page_table_init();
 void map_page_4k(uint32_t vaddr, uint32_t paddr);
 
 #endif

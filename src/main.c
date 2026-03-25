@@ -46,7 +46,7 @@ void main() {
         }
 
         /*
-        if (i > 122000) {
+        if (i > 0) {
             printk("%x\n", v);
             printk("%x\n", __pa(v));
             printk("%d\n", i);
@@ -108,4 +108,9 @@ void main() {
     printk("ALLOC\n");
     void* addr11 = kmalloc(2048);
     printk("2048: %x\n", addr11);
+
+    extern uint32_t __l1_page_table_start__;
+    printk("%x\n", &__l1_page_table_start__);
+
+    // GET32(0);
 }

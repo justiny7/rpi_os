@@ -40,15 +40,12 @@ static int find_size(uint32_t size) {
 static Page* format_slab(KMemCache* cache) {
     uint32_t size = cache->size;
 
-    uint32_t new_slab_paddr = (uint32_t) page_alloc(0);
-    uint32_t new_slab_vaddr = (uint32_t) __va(new_slab_paddr);
-    map_page_4k(new_slab_vaddr, new_slab_paddr);
+    uint32_t new_slab_vaddr = (uint32_t) page_alloc(0);
 
     uint32_t num_objs = PAGE_SIZE / size;
 
 #ifdef DEBUG
     printk("alloc'ed new slab with %d objs\n", num_objs);
-    printk("paddr: %x\n", new_slab_paddr);
     printk("vaddr: %x\n", new_slab_vaddr);
 #endif
 

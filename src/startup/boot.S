@@ -23,16 +23,15 @@ und_stack_top:
 .section ".text.boot"
 .global _start
 _start:
-    mrc p15, 0, r0, c1, c0, 2    // Read CPACR (Coprocessor Access Control Register)
-    orr r0, r0, #(0xF << 20)     // Set bits 20-23 to 1 (Full access to CP10 and CP11)
-    mcr p15, 0, r0, c1, c0, 2    // Write back to CPACR
+    // enable access to cp10/cp11 (RMW set bits 20-23 in CPACR)
+    mrc p15, 0, r0, c1, c0, 2
+    orr r0, r0, #(0xF << 20)
+    mcr p15, 0, r0, c1, c0, 2
     
-    // Flush the instruction pipeline so the CPU knows it has access now
-    mov r0, #0
-    mcr p15, 0, r0, c7, c5, 4    // (You can also use your PREFETCH_FLUSH macro here)
+    PREFETCH_FLUSH(r0)
 
-    // 2. Power on the VFP hardware
-    mov r0, #0x40000000          // Bit 30 is the 'EN' (Enable) bit for the VFP
+    // turn on VFP (bit 30)
+    mov r0, #0x40000000
     vmsr fpexc, r0
 
     ldr sp, =0x8000
@@ -46,7 +45,6 @@ _start:
     ldr pc, =higher_half_entry
 
 higher_half_entry:
-
     // initialize stacks
     ldr sp, =svc_stack_top
 
@@ -80,6 +78,12 @@ bss_done:
     DSB(r0)
     PREFETCH_FLUSH(r0)
 
+    // clear page 0 in L1 PT
+    ldr r0, =__l1_page_table_start__
+    mov r1, #0
+    str r1, [r0]
+    bl mmu_sync_ptes
+
     // jump to C initialization
     b cstart
 
@@ -87,26 +91,35 @@ bss_done:
 .p2align 5
 .global _interrupt_table
 _interrupt_table:
-    ldr pc, =reset_vector
-    ldr pc, =undefined_instruction_vector
-    ldr pc, swi_handler_ptr
-    ldr pc, prefetch_abort_handler_ptr
-    ldr pc, =data_abort_handler_ptr
-    ldr pc, =reset_vector
-    ldr pc, irq_handler_ptr
-    ldr pc, =fast_interrupt_vector
+    ldr pc, reset_ptr
+    ldr pc, undef_ptr
+    ldr pc, swi_ptr
+    ldr pc, prefetch_ptr
+    ldr pc, data_abort_ptr
+    ldr pc, reset_ptr
+    ldr pc, irq_ptr
+    ldr pc, fiq_ptr
 
-.global irq_handler_ptr
-irq_handler_ptr: .word interrupt_vector
-
-.global data_abort_handler_ptr
-data_abort_handler_ptr: .word data_abort_vector
-
-.global prefetch_abort_handler_ptr
-prefetch_abort_handler_ptr: .word prefetch_abort_vector
-
-.global swi_handler_ptr
-swi_handler_ptr: .word software_interrupt_vector
+reset_ptr:      .word reset_vector
+undef_ptr:      .word undefined_instruction_vector
+swi_ptr:        .word software_interrupt_vector
+prefetch_ptr:   .word prefetch_abort_vector
+data_abort_ptr: .word data_abort_asm
+irq_ptr:        .word interrupt_vector
+fiq_ptr:        .word fast_interrupt_vector
 
 reset_vector:
     bl rpi_reset
+
+data_abort_asm:
+    // adjust LR to pc that crashed
+    sub lr, lr, #8
+
+    push {r0-r3, r12, lr}
+    mov r0, lr
+
+    // read dfsr (crash reason) and dfar (crash address)
+    mrc p15, 0, r1, c5, c0, 0
+    mrc p15, 0, r2, c6, c0, 0
+
+    b data_abort_vector

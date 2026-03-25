@@ -2,6 +2,8 @@
 #include "lib.h"
 #include "vm.h"
 
+// #define DEBUG
+
 void phys_mem_add_region(PhysMem* pmem, uintptr_t rstart, uint32_t rsize) {
     assert(pmem->count < PMEM_MAX_REGIONS, "Exceeded max physical regions");
     pmem->regions[pmem->count++] = (PhysMemRegion) { rstart, rsize };
@@ -10,8 +12,6 @@ void phys_mem_reserve_region(PhysMem* pmem, uintptr_t rstart, uint32_t rsize) {
     // carve out regions from pmem
     rstart = PAGE_ALIGN_DOWN(rstart);
     uintptr_t rend = PAGE_ALIGN_UP(rstart + rsize);
-
-    printk("%d, %d\n", rstart, rend);
 
     PhysMemRegion new_regions[PMEM_MAX_REGIONS];
     uint32_t new_count = 0;
@@ -51,12 +51,13 @@ void phys_mem_init() {
     uint32_t reserved_size = SECTION_ALIGN_UP((uint32_t) __pa(&__heap_start__));
     phys_mem_reserve_region(&phys_mem, 0, reserved_size);
 
-    // /*
+#ifdef DEBUG
     printk("%d\n", phys_mem.count);
     for (uint32_t i = 0; i < phys_mem.count; i++) {
         printk("i: %d, st: %d, sz: %d\n", i, phys_mem.regions[i].start, phys_mem.regions[i].size);
     }
-    // */
+#endif
+
 }
 PhysMem* phys_mem_get() {
     return &phys_mem;

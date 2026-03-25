@@ -1,17 +1,15 @@
 #include "lib.h"
 #include "uart.h"
 #include "arena_allocator.h"
-#include "mmu.h"
+#include "vm.h"
 
-#define PM_RSTC 0x2010001C
-#define PM_WDOG 0x20100024
+#define PM_RSTC (0x2010001C | KERNEL_VBASE)
+#define PM_WDOG (0x20100024 | KERNEL_VBASE)
 #define PM_PASSWORD 0x5A000000
 #define PM_RSTC_WRCFG_FULL_RESET 0x20
 
 void rpi_reboot() {
     uart_flush_tx();
-
-    mmu_disable();
 
     PUT32(PM_WDOG, PM_PASSWORD | 1);
     PUT32(PM_RSTC, PM_PASSWORD | PM_RSTC_WRCFG_FULL_RESET);

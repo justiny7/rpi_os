@@ -17,26 +17,23 @@ void l1_page_table_init() {
 
     // map all RAM to high addresses
     for (uint32_t i = 0; i < TOTAL_MEM_MB; i++) {
-        volatile uint32_t* pte = &phys_l1_pt[vbase_ram_idx + i];
-
         // tag | bufferable + cacheable | RW perms | paddr
-        *pte = (0b10) | (0b11 << 2) | (AP_RW << 10) | (i << 20);
+        phys_l1_pt[vbase_ram_idx + i] =
+            (0b10) | (0b11 << 2) | (AP_RW << 10) | (i << 20);
     }
 
     // map peripherals 
     for (uint32_t i = 0; i < PERI_MEM_MB; i++) {
-        volatile uint32_t* pte = &phys_l1_pt[vbase_peri_idx + i];
-
         // tag | execute-never | RW perms | paddr
-        *pte = (0b10) | (1 << 4) | (AP_RW << 10) | ((i << 20) + PERI_PBASE);
+        phys_l1_pt[vbase_peri_idx + i] =
+            (0b10) | (1 << 4) | (AP_RW << 10) | ((i << 20) + PERI_PBASE);
     }
 
     // map page 0 for booting
     phys_l1_pt[0] = (0b10) | (0b11 << 2) | (AP_RW << 10);
 }
 
-
-void* l2_page_table_init() {
+volatile void* l2_page_table_init() {
     static uintptr_t cur_page;
     static uint32_t table_count = 4;
 
@@ -46,11 +43,11 @@ void* l2_page_table_init() {
 
         // we can fit 4 L2 tables in a single page
         for (uint32_t i = 0; i < L2_NUM_PAGES * 4; i++) {
-            *((uint32_t*) cur_page + i) = 0;
+            *((volatile uint32_t*) cur_page + i) = 0;
         }
     }
 
-    return (void*) (cur_page + (L2_NUM_PAGES * sizeof(uint32_t) * table_count++));
+    return (volatile void*) (cur_page + (L2_NUM_PAGES * sizeof(uint32_t) * table_count++));
 }
 
 void map_page_4k(uint32_t vaddr, uint32_t paddr) {
@@ -61,15 +58,16 @@ void map_page_4k(uint32_t vaddr, uint32_t paddr) {
     uint32_t l2_idx = (vaddr >> 12) & 0xFF;
 
     volatile uint32_t* l1_pte = &l1_page_table[l1_idx];
-    uint32_t* l2_table = NULL;
+    volatile uint32_t* l2_table = NULL;
 
     if ((*l1_pte & 3) == 0b01) {
-        l2_table = (uint32_t*) (*l1_pte & 0xFFFFFC00); // this is a coarse PTE, not section
+        l2_table = (volatile uint32_t*) __va(*l1_pte & 0xFFFFFC00); // this is a coarse PTE, not section
     } else {
-        if (!(*l1_pte)) { // allocate new L2 table if this PTE is empty
-            l2_table = l2_page_table_init();
-        }
-        *l1_pte = ((uint32_t) l2_table & 0xFFFFFC00) | 0b01;
+        assert(*l1_pte == 0, "L1 section already mapped!\n");
+
+        // allocate new L2 table + map L1 to coarse PTE
+        l2_table = l2_page_table_init();
+        *l1_pte = __pa(l2_table) | 0b01;
     }
 
     // physical address | cacheable & bufferable | RW perms | small PTE + XN=0

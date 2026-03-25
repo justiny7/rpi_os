@@ -10,8 +10,8 @@ mmu_init:
 
     PREFETCH_FLUSH(r0)
     
-    mov r1, #3
-    DOMAIN_CTRL_WR(r1) // set for domain 0 to manager mode
+    mov r1, #0x1
+    DOMAIN_CTRL_WR(r1) // set for domain 0 to client mode
 
     ldr r1, =__l1_page_table_start__
     bic r1, r1, #0xC0000000  // convert to paddr
