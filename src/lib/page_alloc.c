@@ -4,6 +4,8 @@
 
 #include <stddef.h>
 
+// #define DEBUG
+
 static Page mem_map[NUM_PAGES];
 static LList free_pages_head[MAX_PAGE_ORDER];
 
@@ -16,8 +18,10 @@ void page_alloc_init(PhysMem* pmem) {
     uint32_t page_start = pmem->regions[0].start / PAGE_SIZE;
     uint32_t page_end = (pmem->regions[0].start + pmem->regions[0].size) / PAGE_SIZE;
 
+#ifdef DEBUG
     printk("%d to %d\n", page_start, page_end);
     printk("num pages: %d\n", NUM_PAGES);
+#endif
 
     // init all pages in usable RAM (mark invalid pages as used)
     for (uint32_t i = 0; i < NUM_PAGES; i++) {
@@ -64,7 +68,6 @@ void* page_alloc(uint32_t order) {
     Page* page = container_of(page_ll, Page, ll);
 
     while (cur_order-- > order) {
-
         // get buddy page (can never be out of range)
         Page* buddy = &mem_map[(page - mem_map) ^ (1 << cur_order)];
 
