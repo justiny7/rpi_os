@@ -18,7 +18,7 @@ void main() {
     /*
     void* pg1 = page_alloc(0);
     void* pg2 = page_alloc(0);
-    printk("pg1: %d, pg2: %d\n", (uint32_t) pg1, (uint32_t) pg2);
+    printk("pg1: %x, pg2: %x\n", (uint32_t) pg1, (uint32_t) pg2);
 
     uint32_t paddr = 0x00100000, vaddr = 0x00200000;
     map_page_4k(paddr, paddr);
@@ -35,9 +35,34 @@ void main() {
     // printk("%x\n", GET32(0x00BFF800));
     // printk("%x\n", GET32(0x00C00000));
 
+
+    // test getting multiple pages
+    void* page1 = page_alloc(1);
+    void* page2 = page_alloc(2);
+    void* page3 = page_alloc(3);
+    void* page4 = page_alloc(4);
+    printk("1: %x\n2: %x\n3: %x\n4: %x\n", page1, page2, page3, page4);
+
+    void* page8 = page_alloc(8);
+    void* page9 = page_alloc(9);
+    void* page10 = page_alloc(10);
+    void* page8_2 = page_alloc(8);
+    printk("1MB: %x\n1MB: %x\n2MB: %x\n3MB: %x\n", page8, page8_2, page9, page10);
+
+    // commenting any one of these should cause OOM
+    page_free(page1, 1);
+    page_free(page2, 2);
+    page_free(page3, 3);
+    page_free(page4, 4);
+    page_free(page8, 8);
+    page_free(page9, 9);
+    page_free(page10, 10);
+    page_free(page8_2, 8);
+
+    // /*
     const int N = 10;
     void* addr[N];
-    for (int i = 0; i < 227325; i++) {
+    for (int i = 0; i < 227326; i++) {
         void* v = kmalloc(2048);
 
         if (i < N) {
@@ -45,31 +70,23 @@ void main() {
             printk("%x\n", addr[i]);
         }
 
-        /*
-        if (i > 0) {
-            printk("%x\n", v);
-            printk("%x\n", __pa(v));
+        if (i >= 227323) {
             printk("%d\n", i);
         }
-        */
     }
     kfree(addr[0]);
     kfree(addr[1]);
     printk("freeing caches: %d\n", kmem_shrink_caches_all());
 
-    printk("ALLOC\n");
     void* addr1 = kmalloc(32);
     printk("32: %x\n", addr1);
 
-    printk("NO ALLOC\n");
     void* addr2 = kmalloc(32);
     printk("32: %x\n", addr2);
 
-    printk("ALLOC\n");
     void* addr3 = kmalloc(128);
     printk("128: %x\n", addr3);
 
-    printk("NO ALLOC\n");
     void* addr4 = kmalloc(128);
     printk("128: %x\n", addr4);
 
@@ -78,39 +95,33 @@ void main() {
     }
     printk("freeing caches: %d\n", kmem_shrink_caches_all());
 
-    printk("ALLOC\n");
     void* addr5 = kmalloc(2048);
     printk("2048: %x\n", addr5);
 
-    printk("NO ALLOC\n");
     void* addr6 = kmalloc(2048);
     printk("2048: %x\n", addr6);
 
-    printk("ALLOC\n");
     void* addr7 = kmalloc(2048);
     printk("2048: %x\n", addr7);
 
     kfree(addr5);
     kfree(addr6);
 
-    printk("NO ALLOC\n");
     void* addr8 = kmalloc(2048);
     printk("2048: %x\n", addr8);
 
-    printk("NO ALLOC\n");
     void* addr9 = kmalloc(2048);
     printk("2048: %x\n", addr9);
 
-    printk("NO ALLOC\n");
     void* addr10 = kmalloc(2048);
     printk("2048: %x\n", addr10);
 
-    printk("ALLOC\n");
     void* addr11 = kmalloc(2048);
     printk("2048: %x\n", addr11);
 
     extern uint32_t __l1_page_table_start__;
-    printk("%x\n", &__l1_page_table_start__);
+    printk("l1 page table start: %x\n", &__l1_page_table_start__);
+    // */
 
     // GET32(0);
 }

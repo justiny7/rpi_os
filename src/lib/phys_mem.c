@@ -2,7 +2,7 @@
 #include "lib.h"
 #include "vm.h"
 
-// #define DEBUG
+#define DEBUG
 
 void phys_mem_add_region(PhysMem* pmem, uintptr_t rstart, uint32_t rsize) {
     assert(pmem->count < PMEM_MAX_REGIONS, "Exceeded max physical regions");
@@ -52,9 +52,12 @@ void phys_mem_init() {
     phys_mem_reserve_region(&phys_mem, 0, reserved_size);
 
 #ifdef DEBUG
+    printk("total RAM mem (bytes): %d\n", RAM_MEM);
     printk("%d\n", phys_mem.count);
     for (uint32_t i = 0; i < phys_mem.count; i++) {
         printk("i: %d, st: %d, sz: %d\n", i, phys_mem.regions[i].start, phys_mem.regions[i].size);
+        printk("beg page: %d, end page: %d\n", (phys_mem.regions[i].start / PAGE_SIZE),
+                (phys_mem.regions[i].start + phys_mem.regions[i].size) / PAGE_SIZE);
     }
 #endif
 
