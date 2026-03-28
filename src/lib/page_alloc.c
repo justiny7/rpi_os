@@ -4,8 +4,6 @@
 
 #include <stddef.h>
 
-// #define DEBUG
-
 static Page mem_map[NUM_PAGES];
 static LList free_pages_head[MAX_PAGE_ORDER];
 
@@ -18,18 +16,16 @@ void page_alloc_init(PhysMem* pmem) {
     uint32_t page_start = pmem->regions[0].start / PAGE_SIZE;
     uint32_t page_end = (pmem->regions[0].start + pmem->regions[0].size) / PAGE_SIZE;
 
-#ifdef DEBUG
     printk("%d to %d\n", page_start, page_end);
     printk("num pages: %d\n", NUM_PAGES);
-#endif
 
-    // init all pages in usable RAM (mark invalid pages as used)
+    // init all pages in usable RAM (mark valid pages)
     for (uint32_t i = 0; i < NUM_PAGES; i++) {
         if (i >= page_start && i < page_end) {
-            mem_map[i].flags = mem_map[i].used = 0;
+            mem_map[i].flags = (1 << PAGE_BUDDY);
             ll_init(&mem_map[i].ll);
         } else {
-            mem_map[i].used = 1;
+            mem_map[i].flags = 0;
         }
     }
 
@@ -38,7 +34,7 @@ void page_alloc_init(PhysMem* pmem) {
     // using insert_prev so lower addresses are handed out first
     uint32_t idx = page_start;
     while (idx < page_end) {
-        int32_t order = MAX_PAGE_ORDER - 1;
+        uint8_t order = MAX_PAGE_ORDER - 1;
         for (; order > 0; order--) {
             uint32_t bs = (1 << order);
             if ((idx + bs <= page_end) && ((idx & (bs - 1)) == 0)) {
@@ -46,15 +42,15 @@ void page_alloc_init(PhysMem* pmem) {
             }
         }
 
-        mem_map[idx].order = order;
+        mem_map[idx].buddy.order = order;
         ll_insert_prev(&mem_map[idx].ll, &free_pages_head[order]);
 
         idx += (1 << order);
     }
 }
 
-void* page_alloc(uint32_t order) {
-    uint32_t cur_order = order;
+void* page_alloc(uint8_t order) {
+    uint8_t cur_order = order;
     while (cur_order < MAX_PAGE_ORDER && ll_empty(&free_pages_head[cur_order])) {
         cur_order++;
     }
@@ -71,16 +67,16 @@ void* page_alloc(uint32_t order) {
         // get buddy page (can never be out of range)
         Page* buddy = &mem_map[(page - mem_map) ^ (1 << cur_order)];
 
-        buddy->used = 0;
-        buddy->order = cur_order;
+        buddy->flags |= (1 << PAGE_BUDDY);
+        buddy->buddy.order = cur_order;
         ll_insert(ll_remove(&buddy->ll), &free_pages_head[cur_order]);
     }
 
-    page->used = 1;
-    page->order = order;
+    page->flags &= ~(1 << PAGE_BUDDY);
+    page->buddy.order = order;
     return page_addr(page);
 }
-void page_free(void* vaddr, uint32_t order) {
+void page_free(void* vaddr, uint8_t order) {
     Page* page = page_get(vaddr);
     uint32_t page_idx = page - mem_map;
 
@@ -92,7 +88,7 @@ void page_free(void* vaddr, uint32_t order) {
         }
 
         Page* buddy = &mem_map[buddy_idx];
-        if (buddy->used || buddy->order != order) { // invalid pages are used
+        if (!(buddy->flags & (1 << PAGE_BUDDY)) || buddy->buddy.order != order) {
             break;
         }
 
@@ -104,8 +100,8 @@ void page_free(void* vaddr, uint32_t order) {
         }
     }
     
-    page->used = 0;
-    page->order = order;
+    page->flags |= (1 << PAGE_BUDDY);
+    page->buddy.order = order;
     ll_insert(&page->ll, &free_pages_head[order]);
 }
 

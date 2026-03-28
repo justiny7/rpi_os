@@ -90,7 +90,7 @@ void main() {
     void* addr4 = kmalloc(128);
     printk("128: %x\n", addr4);
 
-    for (int i = 1; i < N; i++) {
+    for (int i = 2; i < N; i++) {
         kfree(addr[i]);
     }
     printk("freeing caches: %d\n", kmem_shrink_caches_all());

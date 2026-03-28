@@ -50,9 +50,9 @@ static Page* format_slab(KMemCache* cache) {
 #endif
 
     Page* page = page_get(new_slab_vaddr);
-    page->flags |= 1;
+    page->flags |= (1 << PAGE_SLAB);
 
-    ll_init(&page->slab.ll);
+    ll_init(&page->ll);
     page->slab.used = 0;
     page->slab.cache = cache;
     page->slab.free_list = (void*) new_slab_vaddr;
@@ -76,7 +76,7 @@ void* kmalloc(uint32_t size) {
 
     if (ll_empty(&cache->slabs_partial) && ll_empty(&cache->slabs_free)) {
         Page* new_page = format_slab(cache);
-        ll_insert(&new_page->slab.ll, &cache->slabs_partial);
+        ll_insert(&new_page->ll, &cache->slabs_partial);
     } else if (ll_empty(&cache->slabs_partial)) {
         ll_insert(ll_remove(cache->slabs_free.next), &cache->slabs_partial);
     }
@@ -84,7 +84,7 @@ void* kmalloc(uint32_t size) {
     LList* partial_ll = cache->slabs_partial.next;
     assert(partial_ll, "No partial slabs available");
 
-    Page* page = container_of(partial_ll, Page, slab.ll);
+    Page* page = container_of(partial_ll, Page, ll);
 
     void* alloc_chunk = page->slab.free_list;
     page->slab.free_list = *((void**) alloc_chunk);
@@ -100,7 +100,7 @@ void kfree(void* ptr) {
     if (!ptr) return;
 
     Page* page = page_get((void*) (((uintptr_t) ptr) & ~(PAGE_SIZE - 1)));
-    assert(page->flags & 1, "Page not allocated to slab");
+    assert(page->flags & (1 << PAGE_SLAB), "Page not allocated to slab");
     assert(page->slab.used, "Page is empty");
 
     KMemCache* cache = page->slab.cache;
@@ -109,19 +109,19 @@ void kfree(void* ptr) {
     *((void**) ptr) = page->slab.free_list;
     page->slab.free_list = ptr;
 
-    if (page->slab.used-- == (PAGE_SIZE / cache->size)) {
-        ll_insert(ll_remove(&page->slab.ll), &cache->slabs_partial);
+    if (page->slab.used-- == (uint16_t) (PAGE_SIZE / cache->size)) {
+        ll_insert(ll_remove(&page->ll), &cache->slabs_partial);
     } else if (!page->slab.used) {
-        ll_insert(ll_remove(&page->slab.ll), &cache->slabs_free);
+        ll_insert(ll_remove(&page->ll), &cache->slabs_free);
     }
 }
 uint32_t kmem_shrink_cache(KMemCache* cache) {
     uint32_t freed = 0;
     while (!ll_empty(&cache->slabs_free)) {
         LList* free_ll = ll_remove(cache->slabs_free.next);
-        Page* page = container_of(free_ll, Page, slab.ll);
+        Page* page = container_of(free_ll, Page, ll);
 
-        page->flags &= ~1;
+        page->flags &= ~(1 << PAGE_SLAB);
 
         page_free(page_addr(page), 0);
         freed++;
