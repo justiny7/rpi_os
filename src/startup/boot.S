@@ -89,6 +89,8 @@ bss_done:
 
 
 .p2align 5
+.global swi_ptr
+.global irq_ptr
 .global _interrupt_table
 _interrupt_table:
     ldr pc, reset_ptr

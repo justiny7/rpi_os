@@ -8,7 +8,7 @@
 // #define DEBUG
 
 static KMemCache kmem_caches[KMEM_NUM_CACHES];
-static uint32_t kmem_cache_size[KMEM_NUM_CACHES] = {
+static const uint32_t kmem_cache_size[KMEM_NUM_CACHES] = {
     32,
     64,
     128,

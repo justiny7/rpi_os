@@ -4,7 +4,7 @@
 #include "vm.h"
 #include <stdint.h>
 
-#define SYS_TIMER_BASE (0x20003000 + KERNEL_VBASE)
+#define SYS_TIMER_BASE (0x20003000 | KERNEL_VBASE)
 
 enum {
     SYS_TIMER_CS = SYS_TIMER_BASE,
