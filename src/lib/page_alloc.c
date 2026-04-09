@@ -49,7 +49,7 @@ void page_alloc_init(PhysMem* pmem) {
     }
 }
 
-void* page_alloc(uint8_t order) {
+Page* page_alloc(uint8_t order) {
     uint8_t cur_order = order;
     while (cur_order < MAX_PAGE_ORDER && ll_empty(&free_pages_head[cur_order])) {
         cur_order++;
@@ -74,10 +74,9 @@ void* page_alloc(uint8_t order) {
 
     page->flags &= ~(1 << PAGE_BUDDY);
     page->buddy.order = order;
-    return page_addr(page);
+    return page;
 }
-void page_free(void* vaddr, uint8_t order) {
-    Page* page = page_get(vaddr);
+void page_free(Page* page, uint8_t order) {
     uint32_t page_idx = page - mem_map;
 
     // coalesce into largest order
@@ -105,7 +104,7 @@ void page_free(void* vaddr, uint8_t order) {
     ll_insert(&page->ll, &free_pages_head[order]);
 }
 
-void* page_addr(Page* page) {
+void* page_vaddr(Page* page) {
     return __va((page - mem_map) * PAGE_SIZE);
 }
 Page* page_get(void* vaddr) {

@@ -40,7 +40,8 @@ static int find_size(uint32_t size) {
 static Page* format_slab(KMemCache* cache) {
     uint32_t size = cache->size;
 
-    void* new_slab_vaddr = page_alloc(0);
+    Page* page = page_alloc(0);
+    void* new_slab_vaddr = page_vaddr(page);
 
     uint32_t num_objs = PAGE_SIZE / size;
 
@@ -49,7 +50,6 @@ static Page* format_slab(KMemCache* cache) {
     printk("vaddr: %x\n", new_slab_vaddr);
 #endif
 
-    Page* page = page_get(new_slab_vaddr);
     page->flags |= (1 << PAGE_SLAB);
 
     ll_init(&page->ll);
@@ -123,7 +123,7 @@ uint32_t kmem_shrink_cache(KMemCache* cache) {
 
         page->flags &= ~(1 << PAGE_SLAB);
 
-        page_free(page_addr(page), 0);
+        page_free(page, 0);
         freed++;
     }
 
