@@ -22,7 +22,7 @@ void page_alloc_init(PhysMem* pmem) {
     // init all pages in usable RAM (mark valid pages)
     for (uint32_t i = 0; i < NUM_PAGES; i++) {
         if (i >= page_start && i < page_end) {
-            mem_map[i].flags = (1 << PAGE_BUDDY);
+            mem_map[i].flags = (1 << PAGE_FREE);
             ll_init(&mem_map[i].ll);
         } else {
             mem_map[i].flags = 0;
@@ -56,7 +56,7 @@ Page* page_alloc(uint8_t order) {
     }
 
     if (cur_order == MAX_PAGE_ORDER) {
-        panic("Page alloc OOM");
+        panic("Page alloc OOM or order too big");
         return NULL; // OOM
     }
 
@@ -67,12 +67,12 @@ Page* page_alloc(uint8_t order) {
         // get buddy page (can never be out of range)
         Page* buddy = &mem_map[(page - mem_map) ^ (1 << cur_order)];
 
-        buddy->flags |= (1 << PAGE_BUDDY);
+        buddy->flags |= (1 << PAGE_FREE);
         buddy->buddy.order = cur_order;
         ll_insert(ll_remove(&buddy->ll), &free_pages_head[cur_order]);
     }
 
-    page->flags &= ~(1 << PAGE_BUDDY);
+    page->flags &= ~(1 << PAGE_FREE);
     page->buddy.order = order;
     return page;
 }
@@ -87,7 +87,7 @@ void page_free(Page* page, uint8_t order) {
         }
 
         Page* buddy = &mem_map[buddy_idx];
-        if (!(buddy->flags & (1 << PAGE_BUDDY)) || buddy->buddy.order != order) {
+        if (!(buddy->flags & (1 << PAGE_FREE)) || buddy->buddy.order != order) {
             break;
         }
 
@@ -99,13 +99,16 @@ void page_free(Page* page, uint8_t order) {
         }
     }
     
-    page->flags |= (1 << PAGE_BUDDY);
+    page->flags |= (1 << PAGE_FREE);
     page->buddy.order = order;
     ll_insert(&page->ll, &free_pages_head[order]);
 }
 
 void* page_vaddr(Page* page) {
     return __va((page - mem_map) * PAGE_SIZE);
+}
+uint32_t page_paddr(Page* page) {
+    return (uint32_t) ((page - mem_map) * PAGE_SIZE);
 }
 Page* page_get(void* vaddr) {
     assert(((uintptr_t) vaddr) % PAGE_SIZE == 0, "Invalid physical address");

@@ -9,6 +9,7 @@ Page* page_alloc(uint8_t order);
 void page_free(Page* page, uint8_t order);
 
 void* page_vaddr(Page* page);
+uint32_t page_paddr(Page* page);
 Page* page_get(void* vaddr);
 
 #endif

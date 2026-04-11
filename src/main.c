@@ -62,7 +62,8 @@ void main() {
     // /*
     const int N = 10;
     void* addr[N];
-    for (int i = 0; i < 227326; i++) {
+    // /*
+    for (int i = 0; i < 227328; i++) {
         void* v = kmalloc(2048);
 
         if (i < N) {
@@ -74,6 +75,17 @@ void main() {
             printk("%d\n", i);
         }
     }
+    // */
+    /*
+    for (int i = 0; i < 113663; i++) {
+        void* v = kmalloc(4096);
+
+        if (i < N) {
+            addr[i] = v;
+            printk("%x\n", addr[i]);
+        }
+    }
+    */
     kfree(addr[0]);
     kfree(addr[1]);
     printk("freeing caches: %d\n", kmem_shrink_caches_all());

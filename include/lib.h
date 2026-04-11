@@ -28,5 +28,6 @@ void mem_barrier_dmb();
 
 void* memcpy(void* dst, const void* src, uint32_t n);
 void* memset(void* dst, int val, uint32_t n);
+int memcmp(const void* s1, const void* s2, uint32_t n);
 
 #endif

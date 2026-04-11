@@ -6,7 +6,7 @@
 #include <stddef.h>
 
 __attribute__((section(".l1_page_table")))
-static volatile uint32_t l1_page_table[L1_NUM_PAGES];
+volatile uint32_t l1_page_table[L1_NUM_PAGES];
 
 void l1_page_table_init() {
     // use physical address bc this is called before MMU turns on
@@ -50,14 +50,14 @@ volatile void* l2_page_table_init() {
     return (volatile void*) (cur_page + (L2_NUM_PAGES * sizeof(uint32_t) * table_count++));
 }
 
-void map_page_4k(uint32_t vaddr, uint32_t paddr) {
+void map_page_4k(volatile uint32_t* l1_pt_vaddr, uint32_t vaddr, uint32_t paddr, int is_user) {
     assert((vaddr & 0xFFF) == 0, "vaddr not aligned to 4KB");
     assert((paddr & 0xFFF) == 0, "paddr not aligned to 4KB");
 
     uint32_t l1_idx = vaddr >> 20;
     uint32_t l2_idx = (vaddr >> 12) & 0xFF;
 
-    volatile uint32_t* l1_pte = &l1_page_table[l1_idx];
+    volatile uint32_t* l1_pte = &l1_pt_vaddr[l1_idx];
     volatile uint32_t* l2_table = NULL;
 
     if ((*l1_pte & 3) == 0b01) {
@@ -71,8 +71,8 @@ void map_page_4k(uint32_t vaddr, uint32_t paddr) {
     }
 
     // physical address | cacheable & bufferable | RW perms | small PTE + XN=0
-    l2_table[l2_idx] = (paddr & 0xFFFFF000) |
-        (0b11 << 2) | (AP_RW << 4) | (0b10);
+    uint32_t ap_bits = is_user ? AP_RW : AP_SUPER;
+    l2_table[l2_idx] = (paddr & 0xFFFFF000) | (0b11 << 2) | (ap_bits << 4) | (0b10);
 
     mmu_sync_ptes();
 }

@@ -9,7 +9,7 @@
 #define MAX_PAGE_ORDER 11
 
 typedef enum {
-    PAGE_BUDDY,
+    PAGE_FREE,
     PAGE_SLAB,
 } PageFlags;
 

@@ -110,7 +110,7 @@ bool emmc_setup_clock() {
     EMMC->control[1] = n;
 
     if (!wait_reg_mask(&EMMC->control[1], EMMC_CTRL1_CLK_STABLE, true, 2000)) {
-        uart_puts("EMMC_ERR: SD CLOCK NOT STABLE\n");
+        printk("EMMC_ERR: SD CLOCK NOT STABLE\n");
         return false;
     }
 
@@ -241,9 +241,7 @@ static bool emmc_issue_command(emmc_cmd cmd, u32 arg, u32 timeout) {
     reg32 command_reg = device.last_command_value;
 
     if (device.transfer_blocks > 0xFFFF) {
-        uart_puts("EMMC_ERR: transferBlocks too large: ");
-        uart_putd(device.transfer_blocks);
-        uart_puts("\n");
+        printk("EMMC_ERR: transferBlocks too large: %d\n", device.transfer_blocks);
         return false;
     }
 
@@ -266,7 +264,7 @@ static bool emmc_issue_command(emmc_cmd cmd, u32 arg, u32 timeout) {
 
     if (times >= timeout) {
         //just doing a warn for this because sometimes it's ok.
-        uart_puts("EMMC_WARN: emmc_issue_command timed out\n");
+        printk("EMMC_WARN: emmc_issue_command timed out\n");
         device.last_success = false;
         return false;
     }
@@ -278,21 +276,14 @@ static bool emmc_issue_command(emmc_cmd cmd, u32 arg, u32 timeout) {
     if ((intr_val & 0xFFFF0001) != 1) {
 
         if (EMMC_DEBUG) {
-            uart_puts("EMMC_DEBUG: Error waiting for command interrupt complete: ");
-            uart_putd(cmd.index);
-            uart_puts("\n");
+            printk("EMMC_DEBUG: Error waiting for command interrupt complete: %d\n", cmd.index);
         }
 
         set_last_error(intr_val);
 
         if (EMMC_DEBUG) {
-            uart_puts("EMMC_DEBUG: IRQFLAGS: ");
-            uart_putx(EMMC->int_flags);
-            uart_puts(" - ");
-            uart_putx(EMMC->status);
-            uart_puts(" - ");
-            uart_putx(intr_val);
-            uart_puts("\n");
+            printk("EMMC_DEBUG: IRQFLAGS: %x - %x - %x\n",
+                    EMMC->int_flags, EMMC->status, intr_val);
         }
 
         device.last_success = false;
@@ -339,14 +330,14 @@ static bool emmc_issue_command(emmc_cmd cmd, u32 arg, u32 timeout) {
 static bool emmc_command(u32 command, u32 arg, u32 timeout) {
     if (command & 0x80000000) {
         //The app command flag is set, shoudl use emmc_app_command instead.
-        uart_puts("EMMC_ERR: COMMAND ERROR NOT APP\n");
+        printk("EMMC_ERR: COMMAND ERROR NOT APP\n");
         return false;
     }
 
     device.last_command = commands[command];
 
     if (TO_REG(&device.last_command) == TO_REG(&INVALID_CMD)) {
-        uart_puts("EMMC_ERR: INVALID COMMAND!\n");
+        printk("EMMC_ERR: INVALID COMMAND!\n");
         return false;
     }
 
@@ -364,9 +355,7 @@ static bool reset_command() {
         sys_timer_delay_ms(1);
     }
 
-    uart_puts("EMMC_ERR: Command line failed to reset properly: ");
-    uart_putx(EMMC->control[1]);
-    uart_puts("\n");
+    printk("EMMC_ERR: Command line failed to reset properly: %x\n", EMMC->control[1]);
 
     return false;
 }
@@ -374,7 +363,7 @@ static bool reset_command() {
 bool emmc_app_command(u32 command, u32 arg, u32 timeout) {
 
     if (commands[command].index >= 60) {
-        uart_puts("EMMC_ERR: INVALID APP COMMAND\n");
+        printk("EMMC_ERR: INVALID APP COMMAND\n");
         return false;
     }
 
@@ -401,7 +390,7 @@ static bool check_v2_card() {
     if (!emmc_command( CTSendIfCond, 0x1AA, 200)) {
         if (device.last_error == 0) {
             //timeout.
-            uart_puts("EMMC_ERR: SEND_IF_COND Timeout\n");
+            printk("EMMC_ERR: SEND_IF_COND Timeout\n");
         } else if (device.last_error & (1 << 16)) {
             //timeout command error
             if (!reset_command()) {
@@ -409,16 +398,14 @@ static bool check_v2_card() {
             }
 
             EMMC->int_flags = sd_error_mask(SDECommandTimeout);
-            uart_puts("EMMC_ERR: SEND_IF_COND CMD TIMEOUT\n");
+            printk("EMMC_ERR: SEND_IF_COND CMD TIMEOUT\n");
         } else {
-            uart_puts("EMMC_ERR: Failure sending SEND_IF_COND\n");
+            printk("EMMC_ERR: Failure sending SEND_IF_COND\n");
             return false;
         }
     } else {
         if ((device.last_response[0] & 0xFFF) != 0x1AA) {
-            uart_puts("EMMC_ERR: Unusable SD Card: ");
-            uart_putx(device.last_response[0]);
-            uart_puts("\n");
+            printk("EMMC_ERR: Unusable SD Card: %x\n", device.last_response[0]);
             return false;
         }
 
@@ -432,7 +419,7 @@ static bool check_usable_card() {
     if (!emmc_command( CTIOSetOpCond, 0, 1000)) {
         if (device.last_error == 0) {
             //timeout.
-            uart_puts("EMMC_ERR: CTIOSetOpCond Timeout\n");
+            printk("EMMC_ERR: CTIOSetOpCond Timeout\n");
         } else if (device.last_error & (1 << 16)) {
             //timeout command error
             //this is a normal expected error and calling the reset command will fix it.
@@ -442,7 +429,7 @@ static bool check_usable_card() {
 
             EMMC->int_flags = sd_error_mask(SDECommandTimeout);
         } else {
-            uart_puts("EMMC_ERR: SDIO Card not supported\n");
+            printk("EMMC_ERR: SDIO Card not supported\n");
             return false;
         }
     }
@@ -461,7 +448,7 @@ static bool check_sdhc_support(bool v2_card) {
         }
 
         if (!emmc_app_command( CTOcrCheck, 0x00FF8000 | v2_flags, 2000)) {
-            uart_puts("EMMC_ERR: APP CMD 41 FAILED 2nd\n");
+            printk("EMMC_ERR: APP CMD 41 FAILED 2nd\n");
             return false;
         }
 
@@ -471,9 +458,7 @@ static bool check_sdhc_support(bool v2_card) {
             card_busy = false;
         } else {
             if (EMMC_DEBUG) {
-                uart_puts("EMMC_DEBUG: SLEEPING: ");
-                uart_putx(device.last_response[0]);
-                uart_puts("\n");
+                printk("EMMC_DEBUG: SLEEPING: %x\n", device.last_response[0]);
             }
             sys_timer_delay_ms(500);
         }
@@ -487,9 +472,7 @@ static bool check_ocr() {
 
     for (int i=0; i<5; i++) {
         if (!emmc_app_command(CTOcrCheck, 0, 2000)) {
-            uart_puts("EMMC_WARN: APP CMD OCR CHECK TRY ");
-            uart_putd(i + 1);
-            uart_puts(" FAILED\n");
+            printk("EMMC_WARN: APP CMD OCR CHECK TRY %d FAILED\n", i + 1);
             passed = false;
         } else {
             passed = true;
@@ -503,16 +486,14 @@ static bool check_ocr() {
     }
 
     if (!passed) {
-        uart_puts("EMMC_ERR: APP CMD 41 FAILED\n");
+        printk("EMMC_ERR: APP CMD 41 FAILED\n");
         return false;
     }
 
     device.ocr = (device.last_response[0] >> 8 & 0xFFFF);
 
     if (EMMC_DEBUG) {
-        uart_puts("MEMORY OCR: ");
-        uart_putx(device.ocr);
-        uart_puts("\n");
+        printk("MEMORY OCR: %x\n", device.ocr);
     }
 
     return true;
@@ -520,25 +501,19 @@ static bool check_ocr() {
 
 static bool check_rca() {
     if (!emmc_command( CTSendCide, 0, 2000)) {
-        uart_puts("EMMC_ERR: Failed to send CID\n");
+        printk("EMMC_ERR: Failed to send CID\n");
 
         return false;
     }
 
     if (EMMC_DEBUG) {
-        uart_puts("EMMC_DEBUG: CARD ID: ");
-        uart_putx(device.last_response[0]);
-        uart_puts(".");
-        uart_putx(device.last_response[1]);
-        uart_puts(".");
-        uart_putx(device.last_response[2]);
-        uart_puts(".");
-        uart_putx(device.last_response[3]);
-        uart_puts("\n");
+        printk("EMMC_DEBUG: CARD ID: %x.%x.%x.%x\n",
+                device.last_response[0], device.last_response[1],
+                device.last_response[2], device.last_response[3]);
     }
 
     if (!emmc_command( CTSendRelativeAddr, 0, 2000)) {
-        uart_puts("EMMC_ERR: Failed to send Relative Addr\n");
+        printk("EMMC_ERR: Failed to send Relative Addr\n");
 
         return false;
     }
@@ -546,29 +521,17 @@ static bool check_rca() {
     device.rca = (device.last_response[0] >> 16) & 0xFFFF;
 
     if (EMMC_DEBUG) {
-        uart_puts("EMMC_DEBUG: RCA: ");
-        uart_putx(device.rca);
-        uart_puts("\n");
+        printk("EMMC_DEBUG: RCA: %x\n", device.rca);
 
-        uart_puts("EMMC_DEBUG: CRC_ERR: ");
-        uart_putd((device.last_response[0] >> 15) & 1);
-        uart_puts("\n");
-        uart_puts("EMMC_DEBUG: CMD_ERR: ");
-        uart_putd((device.last_response[0] >> 14) & 1);
-        uart_puts("\n");
-        uart_puts("EMMC_DEBUG: GEN_ERR: ");
-        uart_putd((device.last_response[0] >> 13) & 1);
-        uart_puts("\n");
-        uart_puts("EMMC_DEBUG: STS_ERR: ");
-        uart_putd((device.last_response[0] >> 9) & 1);
-        uart_puts("\n");
-        uart_puts("EMMC_DEBUG: READY  : ");
-        uart_putd((device.last_response[0] >> 8) & 1);
-        uart_puts("\n");
+        printk("EMMC_DEBUG: CRC_ERR: %d\n", (device.last_response[0] >> 15) & 1);
+        printk("EMMC_DEBUG: CMD_ERR: %d\n", (device.last_response[0] >> 14) & 1);
+        printk("EMMC_DEBUG: GEN_ERR: %d\n", (device.last_response[0] >> 13) & 1);
+        printk("EMMC_DEBUG: STS_ERR: %d\n", (device.last_response[0] >> 9) & 1);
+        printk("EMMC_DEBUG: READY  : %d\n", (device.last_response[0] >> 8) & 1);
     }
 
     if (!((device.last_response[0] >> 8) & 1)) {
-        uart_puts("EMMC_ERR: Failed to read RCA\n");
+        printk("EMMC_ERR: Failed to read RCA\n");
         return false;
     }
 
@@ -577,25 +540,21 @@ static bool check_rca() {
 
 static bool select_card() {
     if (!emmc_command( CTSelectCard, device.rca << 16, 2000)) {
-        uart_puts("EMMC_ERR: Failed to select card\n");
+        printk("EMMC_ERR: Failed to select card\n");
         return false;
     }
 
-    if (EMMC_DEBUG) uart_puts("EMMC_DEBUG: Selected Card\n");
+    if (EMMC_DEBUG) printk("EMMC_DEBUG: Selected Card\n");
 
     u32 status = (device.last_response[0] >> 9) & 0xF;
 
     if (status != 3 && status != 4) {
-        uart_puts("EMMC_ERR: Invalid Status: ");
-        uart_putd(status);
-        uart_puts("\n");
+        printk("EMMC_ERR: Invalid Status: %d\n", status);
         return false;
     }
 
     if (EMMC_DEBUG) {
-        uart_puts("EMMC_DEBUG: Status: ");
-        uart_putd(status);
-        uart_puts("\n");
+        printk("EMMC_DEBUG: Status: %d\n", status);
     }
 
     return true;
@@ -604,7 +563,7 @@ static bool select_card() {
 static bool set_scr() {
     if (!device.sdhc) {
         if (!emmc_command( CTSetBlockLen, 512, 2000)) {
-            uart_puts("EMMC_ERR: Failed to set block len\n");
+            printk("EMMC_ERR: Failed to set block len\n");
             return false;
         }
     }
@@ -619,18 +578,15 @@ static bool set_scr() {
     device.transfer_blocks = 1;
 
     if (!emmc_app_command( CTSendSCR, 0, 30000)) {
-        uart_puts("EMMC_ERR: Failed to send SCR\n");
+        printk("EMMC_ERR: Failed to send SCR\n");
         return false;
     }
 
     if (EMMC_DEBUG) {
-        uart_puts("EMMC_DEBUG: GOT SRC: SCR0: ");
-        uart_putx(device.scr.scr[0]);
-        uart_puts(" SCR1: ");
-        uart_putx(device.scr.scr[1]);
-        uart_puts(" BWID: ");
-        uart_putx(device.scr.bus_widths);
-        uart_puts("\n");
+        printk("EMMC_DEBUG: GOT SRC: SCR0: %x SCR1: %x BWID: %x\n",
+                device.scr.scr[0],
+                device.scr.scr[1],
+                device.scr.bus_widths);
     }
 
     device.block_size = 512;
@@ -660,9 +616,7 @@ static bool set_scr() {
     }
 
     if (EMMC_DEBUG) {
-        uart_puts("EMMC_DEBUG: SCR Version: ");
-        uart_putd(device.scr.version);
-        uart_puts("\n");
+        printk("EMMC_DEBUG: SCR Version: %d\n", device.scr.version);
     }
 
     return true;
@@ -671,10 +625,10 @@ static bool set_scr() {
 static bool emmc_card_reset() {
     EMMC->control[1] = EMMC_CTRL1_RESET_HOST;
 
-    if (EMMC_DEBUG) uart_puts("EMMC_DEBUG: Card resetting...\n");
+    if (EMMC_DEBUG) printk("EMMC_DEBUG: Card resetting...\n");
 
     if (!wait_reg_mask(&EMMC->control[1], EMMC_CTRL1_RESET_ALL, false, 2000)) {
-        uart_puts("EMMC_ERR: Card reset timeout!\n");
+        printk("EMMC_ERR: Card reset timeout!\n");
         return false;
     }
 
@@ -703,7 +657,7 @@ static bool emmc_card_reset() {
     device.block_size = 0;
 
     if (!emmc_command(CTGoIdle, 0, 2000)) {
-        uart_puts("EMMC_ERR: NO GO_IDLE RESPONSE\n");
+        printk("EMMC_ERR: NO GO_IDLE RESPONSE\n");
         return false;
     }
 
@@ -741,7 +695,7 @@ static bool emmc_card_reset() {
     //enable all interrupts
     EMMC->int_flags = 0xFFFFFFFF;
 
-    if (EMMC_DEBUG) uart_puts("EMMC_DEBUG: Card reset!\n");
+    if (EMMC_DEBUG) printk("EMMC_DEBUG: Card reset!\n");
 
     return true;
 }
@@ -752,11 +706,8 @@ static bool do_data_command(bool write, u8 *b, u32 bsize, u32 block_no) {
     }
 
     if (bsize < device.block_size) {
-        uart_puts("EMMC_ERR: INVALID BLOCK SIZE: bsize: ");
-        uart_putd(bsize);
-        uart_puts(" device.block_size: ");
-        uart_putd(device.block_size);
-        uart_puts("\n");
+        printk("EMMC_ERR: INVALID BLOCK SIZE: bsize: %d device.block_size: %d\n",
+                bsize, device.block_size);
         return false;
     }
 
@@ -766,7 +717,7 @@ static bool do_data_command(bool write, u8 *b, u32 bsize, u32 block_no) {
 
     /* if (bsize % device.block_size) { */
     if (bsize & 0x1ff) {
-        uart_puts("EMMC_ERR: BAD BLOCK SIZE\n");
+        printk("EMMC_ERR: BAD BLOCK SIZE\n");
         return false;
     }
 
@@ -786,9 +737,7 @@ static bool do_data_command(bool write, u8 *b, u32 bsize, u32 block_no) {
     int max_retries = 3;
 
     if (EMMC_DEBUG) {
-        uart_puts("EMMC_DEBUG: Sending command: ");
-        uart_putd(command);
-        uart_puts("\n");
+        printk("EMMC_DEBUG: Sending command: %d\n", command);
     }
 
     while(retry_count < max_retries) {
@@ -797,9 +746,9 @@ static bool do_data_command(bool write, u8 *b, u32 bsize, u32 block_no) {
         }
 
         if (++retry_count < max_retries) {
-            uart_puts("EMMC_WARN: Retrying data command\n");
+            printk("EMMC_WARN: Retrying data command\n");
         } else {
-            uart_puts("EMMC_ERR: Giving up data command\n");
+            printk("EMMC_ERR: Giving up data command\n");
             return false;
         }
     }
@@ -822,11 +771,7 @@ int emmc_read(u32 sector, u8 *buffer, u32 size) {
     mem_barrier_dsb();
 
     if (!success) {
-        uart_puts("EMMC_ERR: READ FAILED: sector=");
-        uart_putd(sector);
-        uart_puts(", size=");
-        uart_putd(size);
-        uart_puts("\n");
+        printk("EMMC_ERR: READ FAILED: sector=%d, size=%d\n", sector, size);
         return -1;
     }
 
@@ -840,9 +785,7 @@ int emmc_write(u32 sector, u8 *buffer, u32 size) {
     int r = do_data_command(true, buffer, size, sector);
     mem_barrier_dsb();
     if (!r) {
-        uart_puts("EMMC_ERR: WRITE FAILED: ");
-        uart_putd(r);
-        uart_puts("\n");
+        printk("EMMC_ERR: WRITE FAILED: %d\n", r);
         return -1;
     }
     return size;
@@ -882,7 +825,7 @@ bool emmc_init() {
         }
 
         sys_timer_delay_ms(100);
-        uart_puts("EMMC_WARN: Failed to reset card, trying again...\n");
+        printk("EMMC_WARN: Failed to reset card, trying again...\n");
     }
 
     mem_barrier_dsb();

@@ -122,6 +122,14 @@ void* memset(void* dst, int val, uint32_t n) {
 
     return dst;
 }
+int memcmp(const void* s1, const void* s2, uint32_t n) {
+    const uint8_t *a = s1, *b = s2;
+    while (n-- > 0) {
+        if (*a != *b) return *a - *b;
+        a++, b++;
+    }
+    return 0;
+}
 
 int errno;
 int* __errno() {

@@ -9,7 +9,7 @@
 
 #define SECTOR_SIZE 512
 #define MAX_LFN_LEN 256
-#define LAST_CLUSTER 0xFFFFFF8
+#define LAST_CLUSTER 0x0FFFFFF8
 
 // the BIOS Parameter Block (in Volume Boot Record)
 typedef struct {

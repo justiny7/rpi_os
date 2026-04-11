@@ -59,9 +59,10 @@ typedef union {
 } L2_Small_PTE;
 
 enum {
-    AP_RW        = 0b11,
+    AP_RW        = 0b11, // sup/user RW
     AP_NO_ACCESS = 0b00,
-    AP_RD        = 0b10
+    AP_RD        = 0b10,
+    AP_SUPER     = 0b01, // sup RW, user no acc
 };
 
 enum {
@@ -71,8 +72,10 @@ enum {
     DOM_manager   = 0b11
 };
 
+extern volatile uint32_t l1_page_table[L1_NUM_PAGES];
+
 void l1_page_table_init();
 volatile void* l2_page_table_init();
-void map_page_4k(uint32_t vaddr, uint32_t paddr);
+void map_page_4k(volatile uint32_t* l1_pt_vaddr, uint32_t vaddr, uint32_t paddr, int is_user);
 
 #endif

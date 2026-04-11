@@ -69,7 +69,16 @@ static Page* format_slab(KMemCache* cache) {
 void* kmalloc(uint32_t size) {
     int idx = find_size(size);
     if (idx == -1) {
-        return NULL;
+        uint8_t order = 0;
+        uint32_t sz = PAGE_SIZE;
+
+        while (sz < size) {
+            sz *= 2;
+            order++;
+        }
+
+        Page* p = page_alloc(order);
+        return (p ? page_vaddr(p) : NULL);
     }
 
     KMemCache* cache = &kmem_caches[idx];
@@ -100,7 +109,11 @@ void kfree(void* ptr) {
     if (!ptr) return;
 
     Page* page = page_get((void*) (((uintptr_t) ptr) & ~(PAGE_SIZE - 1)));
-    assert(page->flags & (1 << PAGE_SLAB), "Page not allocated to slab");
+    if (!((page->flags >> PAGE_SLAB) & 1)) {
+        page_free(page, page->buddy.order);
+        return;
+    }
+
     assert(page->slab.used, "Page is empty");
 
     KMemCache* cache = page->slab.cache;
