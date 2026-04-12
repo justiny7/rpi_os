@@ -130,11 +130,32 @@ void uart_putk(const char* s) {
     }
     mem_barrier_dsb();
 }
-void uart_putd(uint32_t x) {
+void uart_putud(uint32_t x) {
     mem_barrier_dsb();
     if (x == 0) {
         _uart_putc('0');
         return;
+    }
+
+    uint8_t num[10] = {};
+    int i = -1;
+    for (; x > 0; x /= 10) {
+        num[++i] = '0' + (x % 10);
+    }
+    while (i >= 0) {
+        _uart_putc(num[i--]);
+    }
+    mem_barrier_dsb();
+}
+void uart_putd(int32_t x) {
+    mem_barrier_dsb();
+    if (x == 0) {
+        _uart_putc('0');
+        return;
+    }
+    if (x < 0) {
+        _uart_putc('-');
+        x = -x;
     }
 
     uint8_t num[10] = {};

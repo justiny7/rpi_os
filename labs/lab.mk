@@ -68,7 +68,7 @@ $(KERNEL): $(BUILD_DIR)/kernel.elf
 	$(OBJCOPY) $< -O binary $@
 
 $(BUILD_DIR)/kernel.elf: $(ALL_OBJS)
-	$(CC) $(LDFLAGS) $(ALL_OBJS) -lm -lgcc -o $@
+	$(CC) $(LDFLAGS) $(ALL_OBJS) -lgcc -o $@
 
 # compile OS .S files
 $(BUILD_DIR)/%.S.o: $(OS_ROOT)/%.S

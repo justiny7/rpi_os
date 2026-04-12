@@ -11,12 +11,19 @@
 #define DEBUG
 #include "debug.h"
 
-#define VERBOSE
+// #define VERBOSE
 
 static uint32_t partition_lba;
 static uint32_t fat_lba;
 static uint32_t data_lba;
 static bpb_t* bpb;
+
+static uint32_t fatdir_get_cluster(fatdir_t* dir) {
+    return ((uint32_t) dir->ch << 16) | dir->cl;
+}
+static uint32_t cluster_to_lba(uint32_t cluster) {
+    return data_lba + (cluster - 2) * bpb->nsec_per_cluster;
+}
 
 int fat_getpartition() {
     uint8_t* mbr = kmalloc(SECTOR_SIZE);
@@ -78,9 +85,6 @@ int fat_getpartition() {
     return 0;
 }
 
-uint32_t cluster_to_lba(uint32_t cluster) {
-    return data_lba + (cluster - 2) * bpb->nsec_per_cluster;
-}
 uint32_t fat_next_cluster(uint32_t cluster) {
     uint8_t* fat = kmalloc(bpb->nbytes_per_sec);
     if (!fat) {
@@ -97,28 +101,17 @@ uint32_t fat_next_cluster(uint32_t cluster) {
     kfree(fat);
     return res & 0x0FFFFFFF;
 }
-uint32_t cluster_chain_len(uint32_t cluster) {
-    uint32_t res = 1;
-
-    uint32_t nxt = fat_next_cluster(cluster);
-    while (nxt < LAST_CLUSTER) {
-        res++;
-        cluster = nxt;
-        nxt = fat_next_cluster(cluster);
-    }
+static uint32_t cluster_chain_len(uint32_t cluster) {
+    uint32_t res = 0;
+    for (; cluster < LAST_CLUSTER; res++, cluster = fat_next_cluster(cluster));
     return res;
 }
-void cluster_chain_read(uint32_t cluster, uint8_t* data) {
-    uint32_t bytes_per_cluster = bpb->nsec_per_cluster * bpb->nbytes_per_sec;
-    uint32_t i = 0, nxt = fat_next_cluster(cluster);
-    while (nxt < LAST_CLUSTER) {
+static void cluster_chain_read(uint32_t cluster, uint8_t* data) {
+    const uint32_t bytes_per_cluster = bpb->nsec_per_cluster * bpb->nbytes_per_sec;
+    for (int i = 0; cluster < LAST_CLUSTER; i += bytes_per_cluster) {
         sd_readblock(cluster_to_lba(cluster), &data[i], bpb->nsec_per_cluster);
-
-        cluster = nxt;
-        nxt = fat_next_cluster(cluster);
-        i += bytes_per_cluster;
+        cluster = fat_next_cluster(cluster);
     }
-    sd_readblock(cluster_to_lba(cluster), &data[i], bpb->nsec_per_cluster);
 }
 
 fatdir_t* fat_statroot() {
@@ -203,7 +196,7 @@ void fat_get_plys(fatdir_t** dirs, uint8_t** lfns, uint32_t* num_files) {
     *dirs = res;
     *lfns = lfn;
 }
-uint32_t fat_getcluster(char* fn, uint32_t* file_size) {
+uint32_t fat_getcluster(const char* fn, uint32_t* filesize) {
     fatdir_t* dir = fat_statroot();
 
     for (; dir->name[0]; dir++) {
@@ -216,8 +209,8 @@ uint32_t fat_getcluster(char* fn, uint32_t* file_size) {
             printk("FAT File %s starts at cluster: %x size: %d\n", fn, fatdir_get_cluster(dir), dir->size);
 #endif
 
-            if (file_size) {
-                *file_size = dir->size;
+            if (filesize) {
+                *filesize = dir->size;
             }
 
             return fatdir_get_cluster(dir);
@@ -251,8 +244,4 @@ void fat_readfile(const char* fn, uint8_t** data, uint32_t* filesize) {
     uint32_t cluster = fat_getcluster(fn, filesize);
     assert(cluster, "File not found");
     fat_readfile_cluster(cluster, data);
-}
-
-uint32_t fatdir_get_cluster(fatdir_t* dir) {
-    return ((uint32_t) dir->ch << 16) | dir->cl;
 }

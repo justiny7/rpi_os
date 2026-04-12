@@ -42,7 +42,7 @@ kernel.img: $(BUILD_DIR)/kernel.elf
 	$(OBJCOPY) $< -O binary $@
 
 $(BUILD_DIR)/kernel.elf: $(OBJS) $(LIB_OBJS)
-	$(CC) $(LDFLAGS) $(OBJS) $(LIB_OBJS) -lm -lgcc -o $@
+	$(CC) $(LDFLAGS) $(OBJS) $(LIB_OBJS) -lgcc -o $@
 
 # asm rules
 $(BUILD_DIR)/%.S.o: %.S
@@ -59,6 +59,15 @@ $(KERNEL_DIR)/%.c $(KERNEL_DIR)/%.h &: $(KERNEL_DIR)/%.qasm
 	/opt/homebrew/opt/vc4asm/bin/vc4asm -h $(KERNEL_DIR)/$*.h -c $(KERNEL_DIR)/$*.c $<
 
 $(OBJS): $(SRCS_QASM:$(KERNEL_DIR)/%.qasm=$(KERNEL_DIR)/%.h)
+
+# --- USER PROGRAM RULE ---
+TEST_BIN = TEST.BIN
+
+$(TEST_BIN): user/test.c user/start.S user/user.ld
+	$(CC) $(CFLAGS) -c user/start.S -o build/start.o
+	$(CC) $(CFLAGS) -c user/test.c -o build/test.o
+	$(CC) -T user/user.ld -nostdlib build/start.o build/test.o -lgcc -o build/test.elf
+	$(OBJCOPY) -O binary build/test.elf $@
 
 clean:
 	rm -rf $(BUILD_DIR) kernel.img

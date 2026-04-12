@@ -104,7 +104,7 @@ _interrupt_table:
 
 reset_ptr:      .word reset_vector
 undef_ptr:      .word undefined_instruction_vector
-swi_ptr:        .word software_interrupt_vector
+swi_ptr:        .word swi_asm
 prefetch_ptr:   .word prefetch_abort_vector
 data_abort_ptr: .word data_abort_asm
 irq_ptr:        .word interrupt_vector
@@ -125,3 +125,27 @@ data_abort_asm:
     mrc p15, 0, r2, c6, c0, 0
 
     b data_abort_vector
+
+swi_asm:
+    // subtract sizeof(TrapFrame) + store all registers
+    sub sp, sp, #68
+    stmia sp, {r0-r12}^
+    add r0, sp, #52
+    stmia r0, {sp, lr}^
+    str lr, [sp, #60] // user lr = SVC pc
+    mrs r0, spsr
+    str r0, [sp, #64]
+
+    mov r0, sp
+    bl swi_syscall_handler
+
+    // restore registers
+    ldr r0, [sp, #64]
+    msr spsr_cxsf, r0
+    ldr lr, [sp, #60]
+    add r0, sp, #52
+    ldmia r0, {sp, lr}^
+    ldmia sp, {r0-r12}^
+    add sp, sp, #68
+
+    movs pc, lr

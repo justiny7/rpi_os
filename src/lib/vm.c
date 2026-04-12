@@ -34,20 +34,21 @@ void l1_page_table_init() {
 }
 
 volatile void* l2_page_table_init() {
-    static uintptr_t cur_page;
+    static volatile uint32_t* l2_pt;
     static uint32_t table_count = 4;
 
     if (table_count == 4) {
         table_count = 0;
-        cur_page = (uintptr_t) page_alloc(0);
+        Page* page = page_alloc(0);
+        l2_pt = (volatile uint32_t*) page_vaddr(page);
 
         // we can fit 4 L2 tables in a single page
         for (uint32_t i = 0; i < L2_NUM_PAGES * 4; i++) {
-            *((volatile uint32_t*) cur_page + i) = 0;
+            l2_pt[i] = 0;
         }
     }
 
-    return (volatile void*) (cur_page + (L2_NUM_PAGES * sizeof(uint32_t) * table_count++));
+    return (volatile void*) (l2_pt + (L2_NUM_PAGES * table_count++));
 }
 
 void map_page_4k(volatile uint32_t* l1_pt_vaddr, uint32_t vaddr, uint32_t paddr, int is_user) {

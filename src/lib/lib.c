@@ -56,7 +56,7 @@ void printk(const char* fmt, ...) {
                 break;
             }
             case 'd': {
-                uint32_t x = va_arg(args, uint32_t);
+                int32_t x = va_arg(args, int32_t);
                 uart_putd(x);
                 break;
             }
