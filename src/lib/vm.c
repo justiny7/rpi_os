@@ -33,24 +33,6 @@ void l1_page_table_init() {
     phys_l1_pt[0] = (0b10) | (0b11 << 2) | (AP_RW << 10);
 }
 
-volatile void* l2_page_table_init() {
-    static volatile uint32_t* l2_pt;
-    static uint32_t table_count = 4;
-
-    if (table_count == 4) {
-        table_count = 0;
-        Page* page = page_alloc(0);
-        l2_pt = (volatile uint32_t*) page_vaddr(page);
-
-        // we can fit 4 L2 tables in a single page
-        for (uint32_t i = 0; i < L2_NUM_PAGES * 4; i++) {
-            l2_pt[i] = 0;
-        }
-    }
-
-    return (volatile void*) (l2_pt + (L2_NUM_PAGES * table_count++));
-}
-
 void map_page_4k(volatile uint32_t* l1_pt_vaddr, uint32_t vaddr, uint32_t paddr, int is_user) {
     assert((vaddr & 0xFFF) == 0, "vaddr not aligned to 4KB");
     assert((paddr & 0xFFF) == 0, "paddr not aligned to 4KB");
@@ -67,7 +49,10 @@ void map_page_4k(volatile uint32_t* l1_pt_vaddr, uint32_t vaddr, uint32_t paddr,
         assert(*l1_pte == 0, "L1 section already mapped!\n");
 
         // allocate new L2 table + map L1 to coarse PTE
-        l2_table = l2_page_table_init();
+        Page* l2_page = page_alloc(0);
+        l2_table = (volatile uint32_t*) page_vaddr(l2_page);
+        memset((void*) l2_table, 0, PAGE_SIZE);
+
         *l1_pte = __pa(l2_table) | 0b01;
     }
 

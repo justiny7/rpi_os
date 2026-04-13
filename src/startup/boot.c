@@ -5,6 +5,7 @@
 #include "phys_mem.h"
 #include "page_alloc.h"
 #include "kmem.h"
+#include "kuser.h"
 
 __attribute__((interrupt("ABORT")))
 void abort_handler(uint32_t sp) {
@@ -18,6 +19,7 @@ void cstart() {
     phys_mem_init();
     page_alloc_init(phys_mem_get());
     kmem_init();
+    kuser_init();
 
     // enable interrupts
     asm volatile ("cpsie i");

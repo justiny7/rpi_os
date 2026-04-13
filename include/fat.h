@@ -69,10 +69,12 @@ enum {
 
 void fat_init();
 void fat_get_plys(fatdir_t** dirs, uint8_t** lfns, uint32_t* num_files);
-void fat_readfile(const char* fn, uint8_t** data, uint32_t* filesize);
-void fat_readfile_cluster(uint32_t cluster, uint8_t** data);
+void fat_read_file(const char* fn, uint8_t** data, uint32_t* filesize);
+void fat_read_file_cluster(uint32_t cluster, uint8_t** data);
 
-uint32_t fat_getcluster(const char* fn, uint32_t* filesize);
+uint32_t fat_get_file_cluster(const char* fn, uint32_t* filesize);
 uint32_t fat_next_cluster(uint32_t cluster);
+uint32_t fat_read_cluster(uint32_t cluster, uint8_t* data);
+uint32_t fat_bytes_per_sector();
 
 #endif

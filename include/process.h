@@ -5,7 +5,21 @@
 
 #define PROC_HEAP_START 0x10000000
 #define PROC_STACK_START 0xB0000000
-#define PROC_CODE_START 0x8000
+#define KUSER_PAGE 0xFFFF0000
+
+// ELF auxiliary wector types
+enum {
+    AT_NULL   = 0,
+    AT_PAGESZ = 6,
+    AT_HWCAP  = 16
+};
+
+// ARM hardware capabilities
+enum {
+    HWCAP_SWP   = (1 << 0),
+    HWCAP_HALF  = (1 << 1),
+    HWCAP_TLS   = (1 << 15),
+};
 
 typedef struct {
     uint32_t r[13];
@@ -34,7 +48,8 @@ typedef struct {
 } Process;
 
 extern Process* current_process;
-Process* proc_create(const char* filename, uint32_t entry_point);
+Process* proc_create(const char* filename);
 void proc_run(TrapFrame* context, uint32_t l1_pt_vaddr);
+void proc_destroy(Process* p);
 
 #endif

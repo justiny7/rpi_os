@@ -8,7 +8,8 @@
 void main() {
     fat_init();
 
-    Process* p = proc_create("TEST    BIN", 0x8000);
+    // Process* p = proc_create("TEST    BIN");
+    Process* p = proc_create("TEST    ELF");
     if (!p) {
         panic("can't create process\n");
     }

@@ -103,9 +103,9 @@ _interrupt_table:
     ldr pc, fiq_ptr
 
 reset_ptr:      .word reset_vector
-undef_ptr:      .word undefined_instruction_vector
+undef_ptr:      .word undef_asm
 swi_ptr:        .word swi_asm
-prefetch_ptr:   .word prefetch_abort_vector
+prefetch_ptr:   .word prefetch_asm
 data_abort_ptr: .word data_abort_asm
 irq_ptr:        .word interrupt_vector
 fiq_ptr:        .word fast_interrupt_vector
@@ -125,6 +125,18 @@ data_abort_asm:
     mrc p15, 0, r2, c6, c0, 0
 
     b data_abort_vector
+
+undef_asm:
+    sub lr, lr, #4
+    push {r0-r3, r12, lr}
+    mov r0, lr
+    b undefined_instruction_vector
+
+prefetch_asm:
+    sub lr, lr, #4
+    push {r0-r3, r12, lr}
+    mov r0, lr
+    b prefetch_abort_vector
 
 swi_asm:
     // subtract sizeof(TrapFrame) + store all registers

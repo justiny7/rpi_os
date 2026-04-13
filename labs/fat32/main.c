@@ -14,7 +14,7 @@ int main(void) {
 
     uint8_t* data;
     uint32_t filesize;
-    fat_readfile(FILE_NAME, &data, &filesize);
+    fat_read_file(FILE_NAME, &data, &filesize);
     if (data == 0) {
         printk("ERROR: Failed to read file\n");
         rpi_reset();

@@ -1,7 +1,10 @@
 #include "lib.h"
 
-void __attribute__((interrupt("UNDEF"))) undefined_instruction_vector() {
-    printk("Unimplemented undefined instruction vector\n");
+void __attribute__((interrupt("UNDEF"))) undefined_instruction_vector(uint32_t instr_addr) {
+    printk("=============================\n");
+    printk("[FATAL] UNDEFINED INSTRUCTION\n");
+    printk("Instruction: %x\n", instr_addr);
+
     rpi_reset();
 }
 
@@ -10,15 +13,18 @@ void __attribute__((interrupt("SWI"))) software_interrupt_vector() {
     rpi_reset();
 }
 
-void __attribute__((interrupt("ABORT"))) prefetch_abort_vector() {
-    printk("Unimplemented prefetch abort vector\n");
+void __attribute__((interrupt("ABORT"))) prefetch_abort_vector(uint32_t instr_addr) {
+    printk("=============================\n");
+    printk("[FATAL] PREFETCH ABORT\n");
+    printk("Instruction: %x\n", instr_addr);
+
     rpi_reset();
 }
 
-void data_abort_vector(uint32_t instruction_addr, uint32_t dfsr, uint32_t fault_addr) {
+void data_abort_vector(uint32_t instr_addr, uint32_t dfsr, uint32_t fault_addr) {
     printk("=============================\n");
     printk("[FATAL] DATA ABORT\n");
-    printk("Instruction: %x\n", instruction_addr);
+    printk("Instruction: %x\n", instr_addr);
     printk("Memory address: %x\n", fault_addr);
     printk("Status: %x\n", dfsr);
     

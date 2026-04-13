@@ -114,4 +114,8 @@ Page* page_get(void* vaddr) {
     assert(((uintptr_t) vaddr) % PAGE_SIZE == 0, "Invalid physical address");
     return &mem_map[__pa(vaddr) / PAGE_SIZE];
 }
+Page* page_get_p(uint32_t paddr) {
+    assert(((uintptr_t) paddr) % PAGE_SIZE == 0, "Invalid physical address");
+    return &mem_map[paddr / PAGE_SIZE];
+}
 

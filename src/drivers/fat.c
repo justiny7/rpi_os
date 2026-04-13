@@ -18,6 +18,9 @@ static uint32_t fat_lba;
 static uint32_t data_lba;
 static bpb_t* bpb;
 
+static uint32_t fat_cache_sector;
+static uint8_t* fat_cache;
+
 static uint32_t fatdir_get_cluster(fatdir_t* dir) {
     return ((uint32_t) dir->ch << 16) | dir->cl;
 }
@@ -76,30 +79,29 @@ int fat_getpartition() {
         printk("\n");
 #endif
 
-        // read in FAT (assuming only 1)
-        // fat = kmalloc(bpb->nsec_per_fat * bpb->nbytes_per_sec);
-        // sd_readblock(fat_lba, fat, bpb->nsec_per_fat);
-
         return 1;
     }
     return 0;
 }
 
 uint32_t fat_next_cluster(uint32_t cluster) {
-    uint8_t* fat = kmalloc(bpb->nbytes_per_sec);
-    if (!fat) {
-        panic("OOM");
+    if (!fat_cache) {
+        fat_cache = kmalloc(bpb->nbytes_per_sec);
     }
 
     uint32_t fat_offset_bytes = cluster * sizeof(uint32_t);
-    uint32_t sector_offset = fat_offset_bytes / bpb->nbytes_per_sec;
-    uint32_t inner_offset  = fat_offset_bytes % bpb->nbytes_per_sec;
+    uint32_t target_sector = fat_lba + (fat_offset_bytes / bpb->nbytes_per_sec);
+    if (target_sector != fat_cache_sector) {
+        sd_readblock(target_sector, fat_cache, 1);
+        fat_cache_sector = target_sector;
+    }
 
-    sd_readblock(fat_lba + sector_offset, fat, 1);
-    uint32_t res = *((uint32_t*) (fat + inner_offset));
-
-    kfree(fat);
+    uint32_t res = *((uint32_t*) (fat_cache + (fat_offset_bytes % bpb->nbytes_per_sec)));
     return res & 0x0FFFFFFF;
+}
+uint32_t fat_read_cluster(uint32_t cluster, uint8_t* data) {
+    sd_readblock(cluster_to_lba(cluster), data, bpb->nsec_per_cluster);
+    return fat_next_cluster(cluster);
 }
 static uint32_t cluster_chain_len(uint32_t cluster) {
     uint32_t res = 0;
@@ -109,8 +111,7 @@ static uint32_t cluster_chain_len(uint32_t cluster) {
 static void cluster_chain_read(uint32_t cluster, uint8_t* data) {
     const uint32_t bytes_per_cluster = bpb->nsec_per_cluster * bpb->nbytes_per_sec;
     for (int i = 0; cluster < LAST_CLUSTER; i += bytes_per_cluster) {
-        sd_readblock(cluster_to_lba(cluster), &data[i], bpb->nsec_per_cluster);
-        cluster = fat_next_cluster(cluster);
+        cluster = fat_read_cluster(cluster, &data[i]);
     }
 }
 
@@ -196,7 +197,7 @@ void fat_get_plys(fatdir_t** dirs, uint8_t** lfns, uint32_t* num_files) {
     *dirs = res;
     *lfns = lfn;
 }
-uint32_t fat_getcluster(const char* fn, uint32_t* filesize) {
+uint32_t fat_get_file_cluster(const char* fn, uint32_t* filesize) {
     fatdir_t* dir = fat_statroot();
 
     for (; dir->name[0]; dir++) {
@@ -213,11 +214,14 @@ uint32_t fat_getcluster(const char* fn, uint32_t* filesize) {
                 *filesize = dir->size;
             }
 
-            return fatdir_get_cluster(dir);
+            uint32_t res = fatdir_get_cluster(dir);
+            kfree(dir);
+            return res;
         }
     }
 
     printk("ERROR: file not found\n");
+    kfree(dir);
     return 0;
 }
 
@@ -235,13 +239,16 @@ void fat_init() {
 #endif
 }
 
-void fat_readfile_cluster(uint32_t cluster, uint8_t** data) {
+void fat_read_file_cluster(uint32_t cluster, uint8_t** data) {
     uint32_t num_clusters = cluster_chain_len(cluster);
     *data = kmalloc(num_clusters * bpb->nsec_per_cluster * bpb->nbytes_per_sec);
     cluster_chain_read(cluster, *data);
 }
-void fat_readfile(const char* fn, uint8_t** data, uint32_t* filesize) {
-    uint32_t cluster = fat_getcluster(fn, filesize);
+void fat_read_file(const char* fn, uint8_t** data, uint32_t* filesize) {
+    uint32_t cluster = fat_get_file_cluster(fn, filesize);
     assert(cluster, "File not found");
-    fat_readfile_cluster(cluster, data);
+    fat_read_file_cluster(cluster, data);
+}
+uint32_t fat_bytes_per_sector() {
+    return bpb->nbytes_per_sec;
 }
