@@ -4,9 +4,9 @@
 #include "page_alloc.h"
 #include "lib.h"
 #include "fat.h"
-#include "emmc.h"
 #include "elf.h"
 #include "kuser.h"
+#include "fd.h"
 #include "armv6_asm.h"
 
 #include "sys_timer.h"
@@ -37,6 +37,16 @@ Process* proc_create(const char* filename) {
 
     p->heap_start = PROC_HEAP_START;
     p->prog_break = PROC_HEAP_START;
+
+    // map STDIN/STDOUT
+    for (int i = 0; i < 3; i++) {
+        File* f = (File*) kmalloc(sizeof(File));
+        f->vnode = &console_vnode;
+        f->offset = 0;
+        f->flags = 0; 
+        f->ref_count = 1;
+        p->fd_table[i] = f;
+    }
 
     // map kuser page
     map_page_4k(l1_pt_vaddr, KUSER_PAGE, global_kuser_paddr, 1);

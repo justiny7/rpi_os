@@ -1,11 +1,13 @@
 #ifndef PROCESS_H
 #define PROCESS_H
 
-#include <stdint.h>
+#include "fd.h"
 
 #define PROC_HEAP_START 0x10000000
 #define PROC_STACK_START 0xB0000000
 #define KUSER_PAGE 0xFFFF0000
+
+#define MAX_FDS 32
 
 // ELF auxiliary wector types
 enum {
@@ -45,6 +47,8 @@ typedef struct {
 
     uint32_t heap_start;
     uint32_t prog_break;
+
+    File* fd_table[MAX_FDS];
 } Process;
 
 extern Process* current_process;

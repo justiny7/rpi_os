@@ -16,17 +16,6 @@ enum {
     ARM_NR_set_tls   = 0xF0005,
 };
 
-enum {
-    EBADF  = -9,
-    ENOSYS = -38,
-    ENOTTY = -25
-};
-
-enum {
-    STDOUT = 1,
-    STDERR = 2
-};
-
 struct iovec {
     void* iov_base; // ptr to string chunk
     uint32_t iov_len; // length of chunk

@@ -1,31 +1,41 @@
 #include "syscall.h"
 #include "lib.h"
 #include "uart.h"
+#include "fd.h"
 #include "process.h"
 
 #include <stddef.h>
 
-static inline int sys_write(int fd, const char* str, int len) {
-    if (fd == STDOUT || fd == STDERR) {
-        for (int i = 0; i < len; i++) {
-            uart_putc(str[i]);
-        }
-        return len;
-    } else {
-        // TODO: write to file
+static inline int sys_write(int fd, const void* buf, int len) {
+    if (fd < 0 || fd >= MAX_FDS || !current_process->fd_table) {
         return EBADF;
     }
+
+    File* f = current_process->fd_table[fd];
+    if (!f || !f->vnode->ops->write) {
+        return EBADF;
+    }
+
+    return f->vnode->ops->write(f, buf, len);
 }
 static inline int sys_writev(int fd, const struct iovec* iov, int iovcnt) {
     int total = 0;
     for (int i = 0; i < iovcnt; i++) {
-        total += sys_write(fd, (const char*) iov[i].iov_base, iov[i].iov_len);
+        total += sys_write(fd, iov[i].iov_base, iov[i].iov_len);
     }
     return total;
 }
-static inline int sys_read() {
-    panic("Unimplemented sys read\n");
-    return 0;
+static inline int sys_read(int fd, void* buf, int len) {
+    if (fd < 0 || fd >= MAX_FDS || !current_process->fd_table) {
+        return EBADF;
+    }
+
+    File* f = current_process->fd_table[fd];
+    if (!f || !f->vnode->ops->read) {
+        return EBADF;
+    }
+
+    return f->vnode->ops->read(f, buf, len);
 }
 
 static inline int arm_nr_set_tls(uint32_t tls_ptr) {
@@ -48,7 +58,7 @@ void swi_syscall_handler(TrapFrame* regs) {
 
     switch (syscall_num) {
         case LINUX_SYS_WRITE:
-            regs->r[0] = sys_write(regs->r[0], (const char*) regs->r[1], regs->r[2]);
+            regs->r[0] = sys_write(regs->r[0], (const void*) regs->r[1], regs->r[2]);
             break;
         case LINUX_SYS_WRITEV:
             regs->r[0] = sys_writev(regs->r[0],
@@ -56,7 +66,7 @@ void swi_syscall_handler(TrapFrame* regs) {
                     regs->r[2]);
             break;
         case LINUX_SYS_READ:
-            regs->r[0] = sys_read();
+            regs->r[0] = sys_read(regs->r[0], (void*) regs->r[1], regs->r[2]);
             break;
         case LINUX_SYS_IOCTL :
             regs->r[0] = ENOTTY;
