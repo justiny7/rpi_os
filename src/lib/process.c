@@ -35,7 +35,6 @@ Process* proc_create(const char* filename) {
         }
     }
 
-    p->heap_start = PROC_HEAP_START;
     p->prog_break = PROC_HEAP_START;
 
     // map STDIN/STDOUT
@@ -43,22 +42,27 @@ Process* proc_create(const char* filename) {
         File* f = (File*) kmalloc(sizeof(File));
         f->vnode = &console_vnode;
         f->offset = 0;
-        f->flags = 0; 
+        f->flags = O_RDWR; 
         f->ref_count = 1;
         p->fd_table[i] = f;
     }
 
-    // map kuser page
+    // map kuser page (isn't doing anything rn??)
     map_page_4k(l1_pt_vaddr, KUSER_PAGE, global_kuser_paddr, 1);
 
     // map stack
     Page* stack = page_alloc(0);
     memset(page_vaddr(stack), 0, PAGE_SIZE);
     map_page_4k(l1_pt_vaddr, PROC_STACK_START, page_paddr(stack), 1);
-
     uint32_t* sp = (uint32_t*) (page_vaddr(stack) + PAGE_SIZE);
+
+    *(--sp) = V6L; // "v6l" for ARMv6
+    uint32_t platform_ptr = PROC_STACK_START - (uint32_t) page_vaddr(stack) + (uint32_t) sp;
+
     *(--sp) = 0;
     *(--sp) = AT_NULL;
+    *(--sp) = platform_ptr;
+    *(--sp) = AT_PLATFORM;
     *(--sp) = HWCAP_TLS;
     *(--sp) = AT_HWCAP;
     *(--sp) = PAGE_SIZE;
@@ -67,8 +71,7 @@ Process* proc_create(const char* filename) {
     *(--sp) = 0; // argv[0] = NULL
     *(--sp) = 0; // argc = 0
 
-    uint32_t bytes_pushed = (uint32_t) (page_vaddr(stack) + PAGE_SIZE) - (uint32_t) sp;
-    p->context.sp = PROC_STACK_START + PAGE_SIZE - bytes_pushed;
+    p->context.sp = PROC_STACK_START - (uint32_t) page_vaddr(stack) + (uint32_t) sp;
 
     // map code
     uint8_t* file_data;
@@ -102,7 +105,6 @@ Process* proc_create(const char* filename) {
             memset(k_vaddr, 0, PAGE_SIZE);
 
             map_page_4k(l1_pt_vaddr, va, page_paddr(page), 1);
-            // printk("map page %x to %x\n", page_paddr(page), va);
 
             uint32_t copy_start = (va > vaddr) ? va : vaddr;
             uint32_t copy_end = ((va + PAGE_SIZE) < (vaddr + filesz)) ?
@@ -125,6 +127,8 @@ Process* proc_create(const char* filename) {
 
     p->context.pc = header->e_entry;
     p->context.cpsr = USER_MODE;
+
+    // TODO: set p->prog_break to end of bss?
 
     return p;
 }

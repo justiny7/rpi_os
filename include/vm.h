@@ -77,5 +77,6 @@ extern volatile uint32_t l1_page_table[L1_NUM_PAGES];
 void l1_page_table_init();
 volatile void* l2_page_table_init();
 void map_page_4k(volatile uint32_t* l1_pt_vaddr, uint32_t vaddr, uint32_t paddr, int is_user);
+uint32_t unmap_page_4k(volatile uint32_t* l1_pt_vaddr, uint32_t vaddr);
 
 #endif

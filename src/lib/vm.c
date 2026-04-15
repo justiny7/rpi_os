@@ -41,24 +41,38 @@ void map_page_4k(volatile uint32_t* l1_pt_vaddr, uint32_t vaddr, uint32_t paddr,
     uint32_t l2_idx = (vaddr >> 12) & 0xFF;
 
     volatile uint32_t* l1_pte = &l1_pt_vaddr[l1_idx];
-    volatile uint32_t* l2_table = NULL;
+    volatile uint32_t* l2_pt_vaddr = NULL;
 
     if ((*l1_pte & 3) == 0b01) {
-        l2_table = (volatile uint32_t*) __va(*l1_pte & 0xFFFFFC00); // this is a coarse PTE, not section
+        l2_pt_vaddr = (volatile uint32_t*) __va(*l1_pte & 0xFFFFFC00); // this is a coarse PTE, not section
     } else {
         assert(*l1_pte == 0, "L1 section already mapped!\n");
 
         // allocate new L2 table + map L1 to coarse PTE
         Page* l2_page = page_alloc(0);
-        l2_table = (volatile uint32_t*) page_vaddr(l2_page);
-        memset((void*) l2_table, 0, PAGE_SIZE);
+        l2_pt_vaddr = (volatile uint32_t*) page_vaddr(l2_page);
+        memset((void*) l2_pt_vaddr, 0, PAGE_SIZE);
 
-        *l1_pte = __pa(l2_table) | 0b01;
+        *l1_pte = __pa(l2_pt_vaddr) | 0b01;
     }
 
     // physical address | cacheable & bufferable | RW perms | small PTE + XN=0
     uint32_t ap_bits = is_user ? AP_RW : AP_SUPER;
-    l2_table[l2_idx] = (paddr & 0xFFFFF000) | (0b11 << 2) | (ap_bits << 4) | (0b10);
+    l2_pt_vaddr[l2_idx] = (paddr & 0xFFFFF000) | (0b11 << 2) | (ap_bits << 4) | (0b10);
 
     mmu_sync_ptes();
+}
+uint32_t unmap_page_4k(volatile uint32_t* l1_pt_vaddr, uint32_t vaddr) {
+    uint32_t l1_idx = vaddr >> 20;
+    volatile uint32_t l1_pte = l1_pt_vaddr[l1_idx];
+    if ((l1_pte & 3) != 0b01) return 0;
+
+    uint32_t l2_idx = (vaddr >> 12) & 0xFF;
+    volatile uint32_t* l2_pt_vaddr = (volatile uint32_t*) __va(l1_pte & 0xFFFFFC00);
+
+    uint32_t paddr = l2_pt_vaddr[l2_idx] & 0xFFFFF000;
+    l2_pt_vaddr[l2_idx] = 0;
+    mmu_sync_ptes();
+
+    return paddr;
 }

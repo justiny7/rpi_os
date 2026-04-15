@@ -40,7 +40,7 @@ static int console_write(File* f, const void* buf, uint32_t n) {
     return n;
 }
 static int console_ioctl(File* f, int req, void* arg) {
-    return ENOTTY;
+    return -ENOTTY;
 }
 
 FileOps console_ops = {
@@ -54,3 +54,4 @@ VNode console_vnode = {
     .ops = &console_ops,
     .data = NULL
 };
+

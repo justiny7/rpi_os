@@ -130,8 +130,3 @@ int memcmp(const void* s1, const void* s2, uint32_t n) {
     }
     return 0;
 }
-
-int errno;
-int* __errno() {
-    return &errno;
-}

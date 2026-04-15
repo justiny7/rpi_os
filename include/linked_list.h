@@ -7,12 +7,10 @@
 #define container_of(ptr, type, member) \
     ((type*)((char*)(ptr) - offsetof(type, member)))
 
-typedef struct LList LList;
-
-struct LList {
-    LList* prev;
-    LList* next;
-};
+typedef struct LList {
+    struct LList* prev;
+    struct LList* next;
+} LList;
 
 void ll_init(LList* node);
 LList* ll_insert(LList* node, LList* prev);
