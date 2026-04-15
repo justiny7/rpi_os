@@ -1,6 +1,6 @@
 #include "lib.h"
 
-void __attribute__((interrupt("UNDEF"))) undefined_instruction_vector(uint32_t instr_addr) {
+void undefined_instruction_vector(uint32_t instr_addr) {
     printk("=============================\n");
     printk("[FATAL] UNDEFINED INSTRUCTION\n");
     printk("Instruction: %x\n", instr_addr);
@@ -13,7 +13,7 @@ void __attribute__((interrupt("SWI"))) software_interrupt_vector() {
     rpi_reset();
 }
 
-void __attribute__((interrupt("ABORT"))) prefetch_abort_vector(uint32_t instr_addr) {
+void prefetch_abort_vector(uint32_t instr_addr) {
     printk("=============================\n");
     printk("[FATAL] PREFETCH ABORT\n");
     printk("Instruction: %x\n", instr_addr);
