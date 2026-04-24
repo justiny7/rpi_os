@@ -2,14 +2,6 @@
 #include "sys_timer.h"
 #include "lib.h"
 
-static void clear_pin(Pin p) {
-    gpio_select_output(p);
-    gpio_set_low(p);
-}
-static void set_pin(Pin p) {
-    gpio_select_input(p);
-}
-
 static PinOutput read_scl(I2C* i2c) {
     return gpio_read(i2c->scl);
 }
@@ -17,20 +9,26 @@ static PinOutput read_sda(I2C* i2c) {
     return gpio_read(i2c->sda);
 }
 static void set_scl(I2C* i2c) {
-    set_pin(i2c->scl);
+    gpio_select_input(i2c->scl);
 }
 static void set_sda(I2C* i2c) {
-    set_pin(i2c->sda);
+    gpio_select_input(i2c->sda);
 }
 static void clear_scl(I2C* i2c) {
-    clear_pin(i2c->scl);
+    gpio_select_output(i2c->scl);
+    gpio_set_low(i2c->scl);
 }
 static void clear_sda(I2C* i2c) {
-    clear_pin(i2c->sda);
+    gpio_select_output(i2c->sda);
+    gpio_set_low(i2c->sda);
 }
 static void delay(I2C* i2c) {
     // TODO: calculate delay?
     sys_timer_delay_us(4);
+}
+static void clock_stretching(I2C* i2c) {
+    uint32_t t = sys_timer_get_usec();
+    while (!read_scl(i2c) && (sys_timer_get_usec() - t < 1000));
 }
 
 void i2c_sw_init(I2C* i2c) {
@@ -47,7 +45,7 @@ void i2c_sw_start_cond(I2C* i2c) {
         set_sda(i2c);
         delay(i2c);
         set_scl(i2c);
-        while (!read_scl(i2c));
+        clock_stretching(i2c);
         delay(i2c);
     }
 
@@ -63,7 +61,7 @@ void i2c_sw_stop_cond(I2C* i2c) {
     delay(i2c);
 
     set_scl(i2c);
-    while (!read_scl(i2c));
+    clock_stretching(i2c);
     delay(i2c);
 
     set_sda(i2c);
@@ -82,7 +80,7 @@ void i2c_sw_write_bit(I2C* i2c, bool bit) {
     delay(i2c);
     set_scl(i2c);
     delay(i2c);
-    while (!read_scl(i2c));
+    clock_stretching(i2c);
 
     if (bit && !read_sda(i2c)) {
         panic("Software I2C write: arbitration lost");
@@ -101,7 +99,7 @@ bool i2c_sw_read_bit(I2C* i2c) {
     set_sda(i2c);
     delay(i2c);
     set_scl(i2c);
-    while (!read_scl(i2c));
+    clock_stretching(i2c);
     delay(i2c);
 
     bool res = read_sda(i2c);
