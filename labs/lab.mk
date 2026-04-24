@@ -30,10 +30,13 @@ OS_STARTUP_DIR := $(OS_ROOT)/src/startup
 OS_LIB_DIR     := $(OS_ROOT)/src/lib
 OS_KERNEL_DIR  := $(OS_ROOT)/src/kernels
 
-# OS sources (including qasm-generated .c files)
+# OS sources (including base src/, drivers, startup, and qasm-generated .c files)
 OS_SRCS_QASM := $(wildcard $(OS_KERNEL_DIR)/*.qasm)
-OS_SRCS_C := $(wildcard $(OS_DRV_DIR)/*.c) $(wildcard $(OS_STARTUP_DIR)/*.c) $(OS_SRCS_QASM:.qasm=.c)
-OS_SRCS_S := $(wildcard $(OS_DRV_DIR)/*.S) $(wildcard $(OS_STARTUP_DIR)/*.S)
+OS_SRCS_C := $(wildcard $(OS_SRC_DIR)/*.c) $(wildcard $(OS_DRV_DIR)/*.c) $(wildcard $(OS_STARTUP_DIR)/*.c) $(OS_SRCS_QASM:.qasm=.c)
+OS_SRCS_S := $(wildcard $(OS_SRC_DIR)/*.S) $(wildcard $(OS_DRV_DIR)/*.S) $(wildcard $(OS_STARTUP_DIR)/*.S)
+
+# Filter out the OS's root main.c so it doesn't conflict with the lab's local main.c
+OS_SRCS_C := $(filter-out $(OS_SRC_DIR)/main.c, $(OS_SRCS_C))
 
 # lib sources
 LIB_SRCS_C := $(wildcard $(OS_LIB_DIR)/*.c)

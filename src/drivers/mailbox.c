@@ -3,7 +3,8 @@
 
 void mbox_write(MboxChannel channel, uint32_t data) {
     while (GET32(MBOX_STATUS) & MBOX_FULL_BIT);
-    PUT32(MBOX_WRITE, (data & ~0xF) | (channel & 0xF) | GPU_L2_OFFSET);
+    // PUT32(MBOX_WRITE, (data & ~0xF) | (channel & 0xF) | GPU_L2_OFFSET);
+    PUT32(MBOX_WRITE, (data & ~0xF) | (channel & 0xF));
 }
 uint32_t mbox_read(MboxChannel channel) {
     while (1) {

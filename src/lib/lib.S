@@ -18,6 +18,14 @@ OR32:
     str r2, [r0]
     bx lr
 
+# void AND32(uint32_t addr, uint32_t val)
+.global AND32
+AND32:
+    ldr r2, [r0]
+    and r2, r2, r1
+    str r2, [r0]
+    bx lr
+
 # void PUT8(uint32_t addr, uint32_t val)
 .global PUT8
 PUT8:

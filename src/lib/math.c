@@ -7,6 +7,18 @@ float sqrtf(float x) {
     return result;
 }
 
+float logf(float x) {
+    if (x <= 0.0f) return -1e9f;
+    
+    float y = (x > 1.0f) ? 1.0f : -1.0f; 
+
+    for (int i = 0; i < 8; i++) {
+        float ey = expf(y);
+        y = y - 1.0f + (x / ey);
+    }
+    
+    return y;
+}
 float expf(float x) {
     // Handle extreme values
     if (x < -20.0f) return 0.0f;
@@ -33,6 +45,15 @@ float expf(float x) {
     }
     
     return res;
+}
+float powf(float x, float y) {
+    if (x == 0.0f) return 0.0f;
+    if (y == 0.0f) return 1.0f;
+    if (x < 0.0f) {
+        return 0.0f; 
+    }
+
+    return expf(y * logf(x));
 }
 
 float sinf(float x) {

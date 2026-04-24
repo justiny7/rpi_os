@@ -6,7 +6,9 @@
 
 #define M_PI 3.14159265358979
 
+float logf(float x);
 float sqrtf(float x);
+float powf(float b, float e);
 float expf(float x);
 float sinf(float x);
 float cosf(float x);

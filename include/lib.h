@@ -10,6 +10,7 @@
 void PUT32(uint32_t addr, uint32_t val);
 uint32_t GET32(uint32_t addr);
 void OR32(uint32_t addr, uint32_t val);
+void AND32(uint32_t addr, uint32_t val);
 
  // stores lowest 8 bytes of val
 void PUT8(uint32_t addr, uint32_t val);

@@ -1,12 +1,12 @@
 #ifndef MAILBOX_H
 #define MAILBOX_H
 
-#include <stdint.h>
+#include "vm.h"
 
 #define MBOX_FULL_BIT 0x80000000 // (1 << 31)
 #define MBOX_EMPTY_BIT 0x40000000 // (1 << 30)
 
-#define MBOX_BASE_ADDR 0x2000B880
+#define MBOX_BASE_ADDR (0x2000B880 | KERNEL_VBASE)
 #define GPU_L2_OFFSET 0x40000000
 
 enum {

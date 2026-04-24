@@ -80,7 +80,7 @@ bool gpio_has_interrupt() {
     return res;
 }
 
-void gpio_enable_int(Pin pin) {
+static void gpio_enable_int(Pin pin) {
     const uint32_t p_num = _check_pin(pin);
 
     mem_barrier_dsb();
