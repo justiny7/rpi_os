@@ -2,6 +2,7 @@
 CC      = arm-none-eabi-gcc
 LD      = arm-none-eabi-ld
 OBJCOPY = arm-none-eabi-objcopy
+AR 		= arm-none-eabi-ar
 
 # flags
 CFLAGS  = -mcpu=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp -fpic -ffreestanding -O2 -Wall -Wextra -nostdlib -Iinclude -Isrc/kernels
@@ -59,6 +60,17 @@ $(KERNEL_DIR)/%.c $(KERNEL_DIR)/%.h &: $(KERNEL_DIR)/%.qasm
 	/opt/homebrew/opt/vc4asm/bin/vc4asm -h $(KERNEL_DIR)/$*.h -c $(KERNEL_DIR)/$*.c $<
 
 $(OBJS): $(SRCS_QASM:$(KERNEL_DIR)/%.qasm=$(KERNEL_DIR)/%.h)
+
+
+# make library
+LIB_TARGET = $(BUILD_DIR)/librpi_os.a
+LIB_OBJS_FILTERED = $(filter-out $(BUILD_DIR)/src/main.c.o, $(OBJS))
+
+lib: $(LIB_TARGET)
+
+$(LIB_TARGET): $(LIB_OBJS_FILTERED) $(LIB_OBJS)
+	@mkdir -p $(dir $@)
+	$(AR) rcs $@ $^
 
 # --- USER PROGRAM RULE ---
 TEST_ELF = TEST.ELF
