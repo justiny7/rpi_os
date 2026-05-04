@@ -75,7 +75,8 @@ void gpio_set_pull(Pin pin, GpioPull pull) {
 
 bool gpio_has_interrupt() {
     mem_barrier_dsb();
-    bool res = GET32(IRQ_PENDING_2) & (1U << (GPIO_INT_0 - 32));
+    bool res = GET32(IRQ_PENDING_2) &
+        ((1U << (GPIO_INT_0 - 32)) | (1U << (GPIO_INT_1 - 32)));
     mem_barrier_dsb();
     return res;
 }

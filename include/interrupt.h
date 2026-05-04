@@ -5,6 +5,7 @@
 
 #define IRQ_BASE (0x2000B000 | KERNEL_VBASE)
 
+// 1 is for 0-31 on peripherals table, 2 is for 32-63
 enum {
     IRQ_BASIC_PENDING = IRQ_BASE + 0x200,
     IRQ_PENDING_1     = IRQ_BASE + 0x204,
@@ -17,9 +18,10 @@ enum {
 };
 
 typedef enum {
-    AUX_INT    = 29,
-    GPIO_INT_0 = 49,
-    GPIO_INT_1 = 50,
+    AUX_INT     = 29,
+    CAM1_INT    = 39, // https://github.com/rsta2/circle/blob/master/include/circle/bcm2835int.h
+    GPIO_INT_0  = 49,
+    GPIO_INT_1  = 50,
 } ARM_Peripherals_Table;
 
 typedef enum {
