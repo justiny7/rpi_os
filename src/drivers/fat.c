@@ -226,7 +226,7 @@ uint32_t fat_get_file_cluster(const char* fn, uint32_t* filesize) {
 }
 
 void fat_init() {
-    assert(emmc_init(), "SD init failed");
+    assert(sd_init() == SD_OK, "SD init failed");
 
 #ifdef VERBOSE
     printk("SD init OK\n");
