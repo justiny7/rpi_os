@@ -70,6 +70,7 @@ enum {
 void fat_init();
 void fat_get_plys(fatdir_t** dirs, uint8_t** lfns, uint32_t* num_files);
 void fat_read_file(const char* fn, uint8_t** data, uint32_t* filesize);
+void fat_write_file(const char* fn, const uint8_t* data, uint32_t filesize);
 void fat_read_file_cluster(uint32_t cluster, uint8_t** data);
 
 uint32_t fat_get_file_cluster(const char* fn, uint32_t* filesize);

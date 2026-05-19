@@ -226,7 +226,7 @@ uint32_t fat_get_file_cluster(const char* fn, uint32_t* filesize) {
 }
 
 void fat_init() {
-    assert(sd_init() == SD_OK, "SD init failed");
+    assert(emmc_init(), "SD init failed");
 
 #ifdef VERBOSE
     printk("SD init OK\n");
@@ -251,4 +251,98 @@ void fat_read_file(const char* fn, uint8_t** data, uint32_t* filesize) {
 }
 uint32_t fat_bytes_per_sector() {
     return bpb->nbytes_per_sec;
+}
+
+static uint32_t fat_alloc_cluster() {
+    uint32_t entries_per_sector = bpb->nbytes_per_sec / sizeof(uint32_t);
+    uint8_t* sector_buf = kmalloc(bpb->nbytes_per_sec);
+
+    for (uint32_t s = 0; s < bpb->nsec_per_fat; s++) {
+        sd_readblock(fat_lba + s, sector_buf, 1);
+        uint32_t* fat_entries = (uint32_t*) sector_buf;
+        for (uint32_t i = 0; i < entries_per_sector; i++) {
+            uint32_t cluster = s * entries_per_sector + i;
+            if (cluster >= 2 && (fat_entries[i] & 0x0FFFFFFF) == 0) {
+                kfree(sector_buf);
+                return cluster;
+            }
+        }
+    }
+
+    kfree(sector_buf);
+    return 0;
+}
+
+static void fat_set_cluster(uint32_t cluster, uint32_t value) {
+    uint32_t fat_offset = cluster * sizeof(uint32_t);
+    uint32_t sector_offset = fat_offset % bpb->nbytes_per_sec;
+    uint8_t* sector_buf = kmalloc(bpb->nbytes_per_sec);
+
+    for (uint32_t f = 0; f < bpb->nfats; f++) {
+        uint32_t sector = fat_lba + f * bpb->nsec_per_fat + fat_offset / bpb->nbytes_per_sec;
+        sd_readblock(sector, sector_buf, 1);
+        *((uint32_t*)(sector_buf + sector_offset)) = value;
+        sd_writeblock(sector_buf, sector, 1);
+    }
+
+    kfree(sector_buf);
+    fat_cache_sector = 0xFFFFFFFF; // invalidate read cache
+}
+
+void fat_write_file(const char* fn, const uint8_t* data, uint32_t filesize) {
+    uint32_t bytes_per_cluster = bpb->nsec_per_cluster * bpb->nbytes_per_sec;
+    uint32_t num_clusters = filesize == 0 ? 1 : (filesize + bytes_per_cluster - 1) / bytes_per_cluster;
+
+    // allocate cluster chain and write data
+    uint32_t first_cluster = 0, prev_cluster = 0;
+    uint8_t* cluster_buf = kmalloc(bytes_per_cluster);
+
+    for (uint32_t i = 0; i < num_clusters; i++) {
+        uint32_t c = fat_alloc_cluster();
+        assert(c, "fat_write_file: disk full");
+
+        fat_set_cluster(c, LAST_CLUSTER);
+        if (prev_cluster)
+            fat_set_cluster(prev_cluster, c);
+        else
+            first_cluster = c;
+
+        uint32_t offset = i * bytes_per_cluster;
+        uint32_t to_copy = (offset + bytes_per_cluster <= filesize) ? bytes_per_cluster : filesize - offset;
+        memcpy(cluster_buf, data + offset, to_copy);
+        if (to_copy < bytes_per_cluster)
+            memset(cluster_buf + to_copy, 0, bytes_per_cluster - to_copy);
+
+        sd_writeblock(cluster_buf, cluster_to_lba(c), bpb->nsec_per_cluster);
+        prev_cluster = c;
+    }
+    kfree(cluster_buf);
+
+    // find a free slot in the root directory and write the entry
+    uint32_t dir_bytes = bpb->nsec_per_cluster * bpb->nbytes_per_sec;
+    uint8_t* dir_buf = kmalloc(dir_bytes);
+
+    for (uint32_t c = bpb->root_cluster; c < LAST_CLUSTER; c = fat_next_cluster(c)) {
+        sd_readblock(cluster_to_lba(c), dir_buf, bpb->nsec_per_cluster);
+        fatdir_t* entries = (fatdir_t*) dir_buf;
+        uint32_t n = dir_bytes / sizeof(fatdir_t);
+
+        for (uint32_t i = 0; i < n; i++) {
+            if (entries[i].name[0] == 0x00 || entries[i].name[0] == 0xE5) {
+                memset(&entries[i], 0, sizeof(fatdir_t));
+                memcpy(entries[i].name, fn, 8);
+                memcpy(entries[i].ext, fn + 8, 3);
+                entries[i].attr[0] = 0x20; // ARCHIVE
+                entries[i].ch = (first_cluster >> 16) & 0xFFFF;
+                entries[i].cl = first_cluster & 0xFFFF;
+                entries[i].size = filesize;
+                sd_writeblock(dir_buf, cluster_to_lba(c), bpb->nsec_per_cluster);
+                kfree(dir_buf);
+                return;
+            }
+        }
+    }
+
+    kfree(dir_buf);
+    printk("ERROR: root directory full\n");
 }
