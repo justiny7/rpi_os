@@ -68,8 +68,8 @@ enum {
 };
 
 void fat_init();
-void fat_get_plys(fatdir_t** dirs, uint8_t** lfns, uint32_t* num_files);
-void fat_get_raws(fatdir_t** dirs, uint32_t* num_files);
+void fat_get_files_ext_lfn(const char* ext, fatdir_t** dirs, uint8_t** lfns, uint32_t* num_files);
+void fat_get_files_ext(const char* ext, fatdir_t** dirs, uint32_t* num_files);
 void fat_free(void* ptr);
 void fat_read_file(const char* fn, uint8_t** data, uint32_t* filesize);
 void fat_write_file(const char* fn, const uint8_t* data, uint32_t filesize);
