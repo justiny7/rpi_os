@@ -129,9 +129,8 @@ int fat_skip_dirent(fatdir_t* dir) {
         (attr & FAT32_VOLUME_LBL) ||
         (dir->name[0] == 0xE5);
 }
-void fat_get_plys(fatdir_t** dirs, uint8_t** lfns, uint32_t* num_files) {
+void fat_get_files_ext_lfn(const char* ext, fatdir_t** dirs, uint8_t** lfns, uint32_t* num_files) {
     fatdir_t* dir = fat_statroot();
-    const char* ext = "PLY";
 
     uint32_t dir_cnt = 0;
     for (fatdir_t* d = dir; d->name[0]; d++) {
@@ -197,6 +196,7 @@ void fat_get_plys(fatdir_t** dirs, uint8_t** lfns, uint32_t* num_files) {
     *dirs = res;
     *lfns = lfn;
 }
+
 uint32_t fat_get_file_cluster(const char* fn, uint32_t* filesize) {
     fatdir_t* dir = fat_statroot();
 
@@ -223,6 +223,31 @@ uint32_t fat_get_file_cluster(const char* fn, uint32_t* filesize) {
     printk("ERROR: file not found\n");
     kfree(dir);
     return 0;
+}
+
+void fat_get_files_ext(const char* ext, fatdir_t** dirs, uint32_t* num_files) {
+    fatdir_t* dir = fat_statroot();
+
+    uint32_t count = 0;
+    for (fatdir_t* d = dir; d->name[0]; d++) {
+        if (!fat_skip_dirent(d) && !memcmp(d->ext, ext, 3))
+            count++;
+    }
+
+    fatdir_t* res = kmalloc(count * sizeof(fatdir_t));
+    uint32_t i = 0;
+    for (fatdir_t* d = dir; d->name[0]; d++) {
+        if (!fat_skip_dirent(d) && !memcmp(d->ext, ext, 3))
+            memcpy(&res[i++], d, sizeof(fatdir_t));
+    }
+
+    kfree(dir);
+    *dirs = res;
+    *num_files = count;
+}
+
+void fat_free(void* ptr) {
+    kfree(ptr);
 }
 
 void fat_init() {
