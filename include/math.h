@@ -15,4 +15,6 @@ float sinf(float x);
 float cosf(float x);
 float tanf(float x);
 
+float clampf(float x, float l, float r);
+
 #endif

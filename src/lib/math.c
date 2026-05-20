@@ -73,3 +73,9 @@ float cosf(float x) {
 float tanf(float x) {
     return sinf(x) / cosf(x);
 }
+
+float clampf(float x, float l, float r) {
+    if (x < l) x = l;
+    if (x > r) x = r;
+    return x;
+}
