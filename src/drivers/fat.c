@@ -225,6 +225,32 @@ uint32_t fat_get_file_cluster(const char* fn, uint32_t* filesize) {
     return 0;
 }
 
+void fat_get_raws(fatdir_t** dirs, uint32_t* num_files) {
+    fatdir_t* dir = fat_statroot();
+    const char* ext = "RAW";
+
+    uint32_t count = 0;
+    for (fatdir_t* d = dir; d->name[0]; d++) {
+        if (!fat_skip_dirent(d) && !memcmp(d->ext, ext, 3))
+            count++;
+    }
+
+    fatdir_t* res = kmalloc(count * sizeof(fatdir_t));
+    uint32_t i = 0;
+    for (fatdir_t* d = dir; d->name[0]; d++) {
+        if (!fat_skip_dirent(d) && !memcmp(d->ext, ext, 3))
+            memcpy(&res[i++], d, sizeof(fatdir_t));
+    }
+
+    kfree(dir);
+    *dirs = res;
+    *num_files = count;
+}
+
+void fat_free(void* ptr) {
+    kfree(ptr);
+}
+
 void fat_init() {
     assert(sd_init() == SD_OK, "SD init failed");
 
