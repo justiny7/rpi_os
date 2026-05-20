@@ -1,5 +1,7 @@
 #include "math.h"
 
+#include <stdint.h>
+
 float sqrtf(float x) {
     float result;
     // 't' constraint tells GCC to use a VFP register (s0-s31)
@@ -8,17 +10,33 @@ float sqrtf(float x) {
 }
 
 float logf(float x) {
-    if (x <= 0.0f) return -1e9f;
-    
-    float y = (x > 1.0f) ? 1.0f : -1.0f; 
+    union {
+        float f;
+        uint32_t i;
+    } vx = { x };
 
-    for (int i = 0; i < 8; i++) {
-        float ey = expf(y);
-        y = y - 1.0f + (x / ey);
-    }
-    
-    return y;
+    if (x <= 0.0f)
+        return -1e30f;
+
+    int exponent = ((vx.i >> 23) & 255) - 127;
+
+    vx.i = (vx.i & 0x7FFFFF) | 0x3F800000;
+    float m = vx.f;
+
+    float z = (m - 1.0f) / (m + 1.0f);
+    float z2 = z * z;
+
+    float p =
+        2.0f * (
+            z +
+            z2 * z / 3.0f +
+            z2 * z2 * z / 5.0f +
+            z2 * z2 * z2 * z / 7.0f
+        );
+
+    return exponent * 0.69314718056f + p;
 }
+
 float expf(float x) {
     // Handle extreme values
     if (x < -20.0f) return 0.0f;
@@ -79,3 +97,4 @@ float clampf(float x, float l, float r) {
     if (x > r) x = r;
     return x;
 }
+

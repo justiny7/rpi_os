@@ -55,7 +55,7 @@ Page* page_alloc(uint8_t order) {
         cur_order++;
     }
 
-    if (cur_order == MAX_PAGE_ORDER) {
+    if (cur_order >= MAX_PAGE_ORDER) {
         panic("Page alloc OOM or order too big");
         return NULL; // OOM
     }
