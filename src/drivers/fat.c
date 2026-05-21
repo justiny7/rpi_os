@@ -314,6 +314,38 @@ static void fat_set_cluster(uint32_t cluster, uint32_t value) {
     fat_cache_sector = 0xFFFFFFFF; // invalidate read cache
 }
 
+void fat_delete_file(const char* fn) {
+    uint32_t dir_bytes = bpb->nsec_per_cluster * bpb->nbytes_per_sec;
+    uint8_t* dir_buf = kmalloc(dir_bytes);
+
+    for (uint32_t c = bpb->root_cluster; c < LAST_CLUSTER; c = fat_next_cluster(c)) {
+        sd_readblock(cluster_to_lba(c), dir_buf, bpb->nsec_per_cluster);
+        fatdir_t* entries = (fatdir_t*) dir_buf;
+        uint32_t n = dir_bytes / sizeof(fatdir_t);
+
+        for (uint32_t i = 0; i < n; i++) {
+            if (entries[i].name[0] == 0x00) {
+                kfree(dir_buf);
+                return;
+            }
+            if (entries[i].name[0] == 0xE5) continue;
+            if (!memcmp(entries[i].name, fn, 8) && !memcmp(entries[i].ext, fn + 8, 3)) {
+                uint32_t cluster = fatdir_get_cluster(&entries[i]);
+                while (cluster < LAST_CLUSTER) {
+                    uint32_t next = fat_next_cluster(cluster);
+                    fat_set_cluster(cluster, 0);
+                    cluster = next;
+                }
+                entries[i].name[0] = 0xE5;
+                sd_writeblock(dir_buf, cluster_to_lba(c), bpb->nsec_per_cluster);
+                kfree(dir_buf);
+                return;
+            }
+        }
+    }
+    kfree(dir_buf);
+}
+
 void fat_write_file(const char* fn, const uint8_t* data, uint32_t filesize) {
     uint32_t bytes_per_cluster = bpb->nsec_per_cluster * bpb->nbytes_per_sec;
     uint32_t num_clusters = filesize == 0 ? 1 : (filesize + bytes_per_cluster - 1) / bytes_per_cluster;
