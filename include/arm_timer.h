@@ -17,22 +17,27 @@ enum {
     ARM_TIMER_MASK_IRQ = ARM_TIMER_BASE + 0x14,
     ARM_TIMER_RELOAD = ARM_TIMER_BASE + 0x18,
     ARM_TIMER_PREDIV = ARM_TIMER_BASE + 0x1C,
-    ARM_TIMER_COUNTER = ARM_TIMER_BASE + 0x20,
+    ARM_TIMER_FREE_RUN = ARM_TIMER_BASE + 0x20,
 };
 
 // BCM p197
 enum {
-    ARM_TIMER_CTRL_23BIT        = (1 << 1),
-    ARM_TIMER_CTRL_PRESCALE_1   = (0 << 2),
-    ARM_TIMER_CTRL_PRESCALE_16  = (1 << 2),
-    ARM_TIMER_CTRL_PRESCALE_256 = (2 << 2),
-    ARM_TIMER_CTRL_INT_ENABLE   = (1 << 5),
-    ARM_TIMER_CTRL_ENABLE       = (1 << 7),
+    ARM_TIMER_CTRL_23BIT            = (1 << 1),
+    ARM_TIMER_CTRL_PRESCALE_1       = (0 << 2),
+    ARM_TIMER_CTRL_PRESCALE_16      = (1 << 2),
+    ARM_TIMER_CTRL_PRESCALE_256     = (2 << 2),
+    ARM_TIMER_CTRL_INT_ENABLE       = (1 << 5),
+    ARM_TIMER_CTRL_ENABLE           = (1 << 7),
+    ARM_TIMER_CTRL_HALT             = (1 << 8),
+    ARM_TIMER_CTRL_FREE_RUN_ENBL    = (1 << 9),
+
+    ARM_TIMER_FREE_RUN_PRESCALE_BIT = 16,
 };
 
 void arm_timer_enable();
 void arm_timer_enable_irq();
 void arm_timer_disable_irq();
+void arm_timer_enable_free_running(uint32_t prescale);
 
 void arm_timer_set_freq(uint32_t hz);
 void arm_timer_set_load(uint32_t count);
@@ -42,5 +47,7 @@ bool arm_timer_int_pending();
 void arm_timer_int_clear();
 
 void arm_timer_int_init(uint32_t prescale, uint32_t ncycles);
+
+uint32_t arm_timer_get_free_run();
 
 #endif

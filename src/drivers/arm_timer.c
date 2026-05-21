@@ -29,13 +29,19 @@ void arm_timer_enable() {
     PUT32(ARM_TIMER_CTRL, ARM_TIMER_CTRL_INT_ENABLE |
             ARM_TIMER_CTRL_ENABLE | ARM_TIMER_CTRL_23BIT);
     PUT32(ARM_TIMER_PREDIV, 0);
-    arm_timer_enable_irq();
 }
 void arm_timer_enable_irq() {
     PUT32(IRQ_ENABLE_BASIC, (1 << ARM_TIMER_IRQ_PENDING));
 }
 void arm_timer_disable_irq() {
     panic("Unimplemented");
+}
+void arm_timer_enable_free_running(uint32_t prescale) {
+    PUT32(ARM_TIMER_CTRL, ARM_TIMER_CTRL_INT_ENABLE |
+            ARM_TIMER_CTRL_ENABLE | ARM_TIMER_CTRL_23BIT |
+            ARM_TIMER_CTRL_FREE_RUN_ENBL |
+            (prescale << ARM_TIMER_FREE_RUN_PRESCALE_BIT));
+    PUT32(ARM_TIMER_PREDIV, 0);
 }
 
 void arm_timer_set_freq(uint32_t hz) {
@@ -59,3 +65,6 @@ void arm_timer_int_clear() {
     PUT32(ARM_TIMER_IRQ_CLR, 1);
 }
 
+uint32_t arm_timer_get_free_run() {
+    return GET32(ARM_TIMER_FREE_RUN);
+}
