@@ -58,11 +58,7 @@ void main() {
 
     for (int i = 0; i < 35; i++) {
         for (int j = 0; j < 35; j++) {
-            if (drawing[i][j] == '1') {
-                ssd1306_set_pixel(&s, i, j, 1);
-            } else {
-                ssd1306_set_pixel(&s, i, j, 0);
-            }
+            ssd1306_set_pixel(&s, i, j, drawing[i][j] - '0');
         }
     }
     ssd1306_draw_screen(&s);
