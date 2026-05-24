@@ -2,14 +2,14 @@
 #define QPU_H
 
 #include "mailbox.h"
-#include <stdint.h>
 
 // V3D spec: http://www.broadcom.com/docs/support/videocore/VideoCoreIV-AG100-R.pdf
-#define V3D_BASE 0x20C00000
+#define V3D_BASE (0x20C00000 | KERNEL_VBASE)
 
-#define PAGE_SIZE 4096
-#define TO_CPU(ptr) ((uint32_t) (ptr) & 0x3FFFFFFF);
-#define TO_BUS(ptr) ((uint32_t) (ptr) | GPU_L2_OFFSET)
+// #define TO_CPU(ptr) ((uint32_t) (ptr) & 0x3FFFFFFF);
+// #define TO_BUS(ptr) ((uint32_t) (ptr) | GPU_L2_OFFSET)
+#define TO_CPU(ptr) ((uint32_t) __va((ptr) & 0x3FFFFFFF));
+#define TO_BUS(ptr) (__pa(ptr) | GPU_L2_OFFSET)
 
 enum {
     V3D_L2CACTL = V3D_BASE + 0x0020,
