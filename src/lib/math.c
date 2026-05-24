@@ -92,6 +92,11 @@ float tanf(float x) {
     return sinf(x) / cosf(x);
 }
 
+uint32_t clampd(uint32_t x, uint32_t l, uint32_t r) {
+    if (x < l) x = l;
+    if (x > r) x = r;
+    return x;
+}
 float clampf(float x, float l, float r) {
     if (x < l) x = l;
     if (x > r) x = r;

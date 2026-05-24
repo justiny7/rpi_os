@@ -1,6 +1,8 @@
 #ifndef MATH_H
 #define MATH_H
 
+#include <stdint.h>
+
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
@@ -15,6 +17,7 @@ float sinf(float x);
 float cosf(float x);
 float tanf(float x);
 
+uint32_t clampd(uint32_t x, uint32_t l, uint32_t r);
 float clampf(float x, float l, float r);
 
 #endif
