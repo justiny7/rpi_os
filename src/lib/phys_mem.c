@@ -2,6 +2,8 @@
 #include "lib.h"
 #include "vm.h"
 
+#include "mailbox_interface.h"
+
 #define DEBUG
 
 void phys_mem_add_region(PhysMem* pmem, uintptr_t rstart, uint32_t rsize) {
@@ -45,14 +47,16 @@ static PhysMem phys_mem;
 
 void phys_mem_init() {
     phys_mem.count = 0;
-    phys_mem_add_region(&phys_mem, 0, RAM_MEM);
+
+    uint32_t ram_mem = mbox_get_arm_memory();
+    phys_mem_add_region(&phys_mem, 0, ram_mem);
 
     extern uint32_t __heap_start__;
     uint32_t reserved_size = SECTION_ALIGN_UP((uint32_t) __pa(&__heap_start__));
     phys_mem_reserve_region(&phys_mem, 0, reserved_size);
 
 #ifdef DEBUG
-    printk("total RAM mem (bytes): %d\n", RAM_MEM);
+    printk("total RAM mem (bytes): %d\n", ram_mem);
     printk("%d\n", phys_mem.count);
     for (uint32_t i = 0; i < phys_mem.count; i++) {
         printk("i: %d, st: %d, sz: %d\n", i, phys_mem.regions[i].start, phys_mem.regions[i].size);
