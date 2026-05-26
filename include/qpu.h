@@ -8,7 +8,7 @@
 
 // #define TO_CPU(ptr) ((uint32_t) (ptr) & 0x3FFFFFFF);
 // #define TO_BUS(ptr) ((uint32_t) (ptr) | GPU_L2_OFFSET)
-#define TO_CPU(ptr) ((uint32_t) __va((ptr) & 0x3FFFFFFF));
+#define TO_CPU(ptr) ((uint32_t) __va(((uintptr_t) ptr) & 0x3FFFFFFF))
 #define TO_BUS(ptr) (__pa(ptr) | GPU_L2_OFFSET)
 
 enum {
