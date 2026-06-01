@@ -4,9 +4,9 @@
 // from CS140E
 
 #define DSB(Rd)             mcr p15, 0, Rd, c7, c10, 4
-#define DMB(Rd)             mcr p15, 0, Rd, c7, c10, 5 
+#define DMB(Rd)             mcr p15, 0, Rd, c7, c10, 5
 
-#define PREFETCH_FLUSH(Rd)  mcr p15, 0, Rd, c7, c5, 4  
+#define PREFETCH_FLUSH(Rd)  mcr p15, 0, Rd, c7, c5, 4
 #define FLUSH_BTB(Rd)       mcr p15, 0, Rd, c7, c5, 6
 
 #define INV_ICACHE(Rd)                                           \
@@ -18,12 +18,12 @@
     nop                         ;                                   \
     .endr
 
-#define CLEAN_INV_DCACHE(Rd)    mcr p15, 0, Rd, c7, c14, 0  
-#define INV_DCACHE(Rd)          mcr p15, 0, Rd, c7, c6, 0  
+#define CLEAN_INV_DCACHE(Rd)    mcr p15, 0, Rd, c7, c14, 0
+#define INV_DCACHE(Rd)          mcr p15, 0, Rd, c7, c6, 0
 #define INV_ALL_CACHES(Rd) INV_ICACHE(Rd); INV_DCACHE(Rd)
 
-#define INV_ITLB(Rd)        mcr p15, 0, Rd, c8, c5, 0 
-#define INV_DTLB(Rd)        mcr p15, 0, Rd, c8, c6, 0 
+#define INV_ITLB(Rd)        mcr p15, 0, Rd, c8, c5, 0
+#define INV_DTLB(Rd)        mcr p15, 0, Rd, c8, c6, 0
 #define INV_TLB(Rd)         mcr p15, 0, Rd, c8, c7, 0
 
 #define TTBR0_GET(Rd)           mrc p15, 0, Rd, c2, c0, 0

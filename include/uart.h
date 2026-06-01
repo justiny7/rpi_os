@@ -57,6 +57,7 @@ void uart_clear_fifos();
 void uart_disable_interrupts();
 void uart_enable_rx_interrupts();
 bool uart_has_interrupt();
+bool uart_get_interrupt_char(uint8_t* c);
 
 bool _uart_can_getc();
 bool _uart_can_putc();

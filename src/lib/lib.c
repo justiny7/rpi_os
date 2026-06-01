@@ -98,6 +98,9 @@ void mem_barrier_dsb() {
 void mem_barrier_dmb() {
     asm volatile ("mcr p15, 0, r0, c7, c10, 5");
 }
+void prefetch_flush() {
+    asm volatile ("mcr p15, 0, r0, c7, c5, 4");
+}
 
 void* memcpy(void* dst, const void* src, uint32_t n) {
     // can't use 32-bit copies bc src and dst might not be the same alignment

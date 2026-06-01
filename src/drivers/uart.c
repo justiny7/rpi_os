@@ -81,6 +81,18 @@ bool uart_has_interrupt() {
     mem_barrier_dsb();
     return res;
 }
+bool uart_get_interrupt_char(uint8_t* c) {
+    if (!uart_has_interrupt()) return false;
+
+    uint32_t aux_irq = GET32(AUX_IRQ);
+    if (!(aux_irq & 1)) return false;
+
+    uint32_t iir = GET32(AUX_MU_IIR_REG);
+    if (((iir >> 1) & 3) != 0b10) return false;
+
+    *c = GET32(AUX_MU_IO_REG) & 0xFF;
+    return true;
+}
 
 // helpers w/ no barriers
 bool _uart_can_getc() {
