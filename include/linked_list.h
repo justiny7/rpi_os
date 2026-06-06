@@ -3,7 +3,6 @@
 
 #include <stdbool.h>
 
-#define offsetof(type, member) ((uint32_t) &((type*) 0)->member)
 #define container_of(ptr, type, member) \
     ((type*)((char*)(ptr) - offsetof(type, member)))
 

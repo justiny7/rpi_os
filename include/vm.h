@@ -15,7 +15,8 @@
 
 enum {
     KERNEL_VBASE_RAM  = KERNEL_VBASE,
-    KERNEL_VBASE_PERI = KERNEL_VBASE + TOTAL_MEM  // 0xE0000000 = vbase + 512MB
+    KERNEL_VBASE_PERI = KERNEL_VBASE + TOTAL_MEM,  // 0xE0000000 = vbase + 512MB
+    KERNEL_VBASE_VMALLOC = KERNEL_VBASE + TOTAL_MEM + PERI_MEM,
 };
 
 #define __va(paddr) ((void*) ((uintptr_t) (paddr) | KERNEL_VBASE))

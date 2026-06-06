@@ -12,6 +12,10 @@ void l1_page_table_init() {
     // use physical address bc this is called before MMU turns on
     volatile uint32_t* phys_l1_pt = (volatile uint32_t*) __pa(l1_page_table);
 
+    for (uint32_t i = 0; i < L1_NUM_PAGES; i++) {
+        phys_l1_pt[i] = 0;
+    }
+
     uint32_t vbase_ram_idx = KERNEL_VBASE_RAM >> 20;
     uint32_t vbase_peri_idx = KERNEL_VBASE_PERI >> 20;
 

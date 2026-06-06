@@ -67,16 +67,18 @@ Page* page_alloc(uint8_t order) {
         // get buddy page (can never be out of range)
         Page* buddy = &mem_map[(page - mem_map) ^ (1 << cur_order)];
 
-        buddy->flags |= (1 << PAGE_FREE);
+        page_set_flag(buddy, PAGE_FREE);
         buddy->buddy.order = cur_order;
         ll_insert(ll_remove(&buddy->ll), &free_pages_head[cur_order]);
     }
 
-    page->flags &= ~(1 << PAGE_FREE);
+    page_clear_flag(page, PAGE_FREE);
     page->buddy.order = order;
     return page;
 }
 void page_free(Page* page, uint8_t order) {
+    if (page_check_flag(page, PAGE_FREE)) return;
+
     uint32_t page_idx = page - mem_map;
 
     // coalesce into largest order
@@ -87,7 +89,7 @@ void page_free(Page* page, uint8_t order) {
         }
 
         Page* buddy = &mem_map[buddy_idx];
-        if (!(buddy->flags & (1 << PAGE_FREE)) || buddy->buddy.order != order) {
+        if (!page_check_flag(buddy, PAGE_FREE) || buddy->buddy.order != order) {
             break;
         }
 
@@ -99,7 +101,7 @@ void page_free(Page* page, uint8_t order) {
         }
     }
     
-    page->flags |= (1 << PAGE_FREE);
+    page_set_flag(page, PAGE_FREE);
     page->buddy.order = order;
     ll_insert(&page->ll, &free_pages_head[order]);
 }

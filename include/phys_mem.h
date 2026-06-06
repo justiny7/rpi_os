@@ -10,15 +10,10 @@
 
 #define MiB(x) ((x) * 1024 * 1024)
 
-// hardcoded for now but maybe can use mailbox
 #define TOTAL_MEM_MB  512
-// #define GPU_MEM_MB    64
-// #define RAM_MEM_MB    (TOTAL_MEM_MB - GPU_MEM_MB)
 #define PERI_MEM_MB   16
 
 #define TOTAL_MEM     MiB(TOTAL_MEM_MB)
-// #define GPU_MEM       MiB(GPU_MEM_MB)
-// #define RAM_MEM       MiB(RAM_MEM_MB)
 #define PERI_MEM      MiB(PERI_MEM_MB)
 
 #define PERI_PBASE    0x20000000

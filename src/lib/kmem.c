@@ -50,7 +50,7 @@ static Page* format_slab(KMemCache* cache) {
     printk("vaddr: %x\n", new_slab_vaddr);
 #endif
 
-    page->flags |= (1 << PAGE_SLAB);
+    page_set_flag(page, PAGE_SLAB);
 
     ll_init(&page->ll);
     page->slab.used = 0;
@@ -109,7 +109,8 @@ void kfree(void* ptr) {
     if (!ptr) return;
 
     Page* page = page_get((void*) (((uintptr_t) ptr) & ~(PAGE_SIZE - 1)));
-    if (!((page->flags >> PAGE_SLAB) & 1)) {
+    if (!page_check_flag(page, PAGE_SLAB) &&
+            !page_check_flag(page, PAGE_VMALLOC)) {
         page_free(page, page->buddy.order);
         return;
     }
@@ -134,7 +135,7 @@ uint32_t kmem_shrink_cache(KMemCache* cache) {
         LList* free_ll = ll_remove(cache->slabs_free.next);
         Page* page = container_of(free_ll, Page, ll);
 
-        page->flags &= ~(1 << PAGE_SLAB);
+        page_clear_flag(page, PAGE_SLAB);
 
         page_free(page, 0);
         freed++;

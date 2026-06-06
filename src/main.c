@@ -1,12 +1,19 @@
 #include "lib.h"
 #include "fat.h"
 #include "process.h"
+#include "vmalloc.h"
 
 #define DEBUG
 #include "debug.h"
 
 void main() {
     fat_init();
+
+    printk("vmalloc test\n");
+    void* vp = vmalloc(MiB(100));
+    printk("addr at: %x\n", (uint32_t) vp);
+    vfree(vp);
+    printk("done\n");
 
     Process* p = proc_create("TEST4   ELF");
     // Process* p = proc_create("TEST3   ELF");

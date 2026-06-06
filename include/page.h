@@ -11,7 +11,8 @@
 typedef enum {
     PAGE_FREE,
     PAGE_SLAB,
-} PageFlags;
+    PAGE_VMALLOC,
+} PageFlag;
 
 typedef struct {
     LList ll;
@@ -30,5 +31,9 @@ typedef struct {
 
     uint32_t flags;
 } Page;
+
+void page_set_flag(Page* page, PageFlag flag);
+void page_clear_flag(Page* page, PageFlag flag);
+bool page_check_flag(Page* page, PageFlag flag);
 
 #endif
