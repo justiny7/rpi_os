@@ -1,6 +1,7 @@
 #include "page_alloc.h"
 #include "vm.h"
 #include "kmem.h"
+#include "vmalloc.h"
 #include "lib.h"
 
 #include <stddef.h>
@@ -129,6 +130,23 @@ void kfree(void* ptr) {
         ll_insert(ll_remove(&page->ll), &cache->slabs_free);
     }
 }
+
+void* kvmalloc(uint32_t size) {
+    return (size > MAX_PAGE_ALLOC_SIZE) ?
+        vmalloc(size) :
+        kmalloc(size);
+}
+void kvfree(void* ptr) {
+    if (!ptr) return;
+
+    Page* page = page_get((void*) (((uintptr_t) ptr) & ~(PAGE_SIZE - 1)));
+    if (page_check_flag(page, PAGE_VMALLOC)) {
+        vfree(ptr);
+    } else {
+        kfree(ptr);
+    }
+}
+
 uint32_t kmem_shrink_cache(KMemCache* cache) {
     uint32_t freed = 0;
     while (!ll_empty(&cache->slabs_free)) {

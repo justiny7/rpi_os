@@ -22,6 +22,9 @@ void kmem_init();
 void* kmalloc(uint32_t size);
 void kfree(void* ptr);
 
+void* kvmalloc(uint32_t size);
+void kvfree(void* ptr);
+
 // return memory back to OS (returns # of freed pages)
 uint32_t kmem_shrink_cache(KMemCache* cache);
 uint32_t kmem_shrink_caches_all();

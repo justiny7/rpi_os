@@ -72,9 +72,10 @@ void fat_get_files_ext_lfn(const char* ext, fatdir_t** dirs, uint8_t** lfns, uin
 void fat_get_files_ext(const char* ext, fatdir_t** dirs, uint32_t* num_files);
 void fat_free(void* ptr);
 void fat_read_file(const char* fn, uint8_t** data, uint32_t* filesize);
+void fat_read_file_fatdir(const fatdir_t* fatdir, uint8_t** data);
+void fat_read_file_cluster(uint32_t cluster, uint8_t** data);
 void fat_write_file(const char* fn, const uint8_t* data, uint32_t filesize);
 void fat_delete_file(const char* fn);
-void fat_read_file_cluster(uint32_t cluster, uint8_t** data);
 
 uint32_t fat_get_file_cluster(const char* fn, uint32_t* filesize);
 uint32_t fat_next_cluster(uint32_t cluster);

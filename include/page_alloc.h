@@ -4,6 +4,8 @@
 #include "page.h"
 #include "phys_mem.h"
 
+#define MAX_PAGE_ALLOC_SIZE ((1 << (MAX_PAGE_ORDER - 1)) * PAGE_SIZE)
+
 void page_alloc_init(PhysMem* pmem);
 Page* page_alloc(uint8_t order);
 void page_free(Page* page, uint8_t order);

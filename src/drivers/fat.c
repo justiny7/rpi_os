@@ -266,8 +266,11 @@ void fat_init() {
 
 void fat_read_file_cluster(uint32_t cluster, uint8_t** data) {
     uint32_t num_clusters = cluster_chain_len(cluster);
-    *data = kmalloc(num_clusters * bpb->nsec_per_cluster * bpb->nbytes_per_sec);
+    *data = kvmalloc(num_clusters * bpb->nsec_per_cluster * bpb->nbytes_per_sec);
     cluster_chain_read(cluster, *data);
+}
+void fat_read_file_fatdir(const fatdir_t* fatdir, uint8_t** data) {
+    fat_read_file_cluster(fatdir_get_cluster(fatdir), data);
 }
 void fat_read_file(const char* fn, uint8_t** data, uint32_t* filesize) {
     uint32_t cluster = fat_get_file_cluster(fn, filesize);
