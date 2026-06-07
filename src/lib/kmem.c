@@ -107,11 +107,10 @@ void* kmalloc(uint32_t size) {
     return alloc_chunk;
 }
 void kfree(void* ptr) {
-    if (!ptr) return;
+    if (!ptr || vmalloc_addr(ptr)) return;
 
     Page* page = page_get((void*) (((uintptr_t) ptr) & ~(PAGE_SIZE - 1)));
-    if (!page_check_flag(page, PAGE_SLAB) &&
-            !page_check_flag(page, PAGE_VMALLOC)) {
+    if (!page_check_flag(page, PAGE_SLAB)) {
         page_free(page, page->buddy.order);
         return;
     }
@@ -139,8 +138,7 @@ void* kvmalloc(uint32_t size) {
 void kvfree(void* ptr) {
     if (!ptr) return;
 
-    Page* page = page_get((void*) (((uintptr_t) ptr) & ~(PAGE_SIZE - 1)));
-    if (page_check_flag(page, PAGE_VMALLOC)) {
+    if (vmalloc_addr(ptr)) {
         vfree(ptr);
     } else {
         kfree(ptr);

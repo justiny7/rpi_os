@@ -3,8 +3,7 @@
 
 #include "vm.h"
 
-#include <stdint.h>
-#include <stddef.h>
+#include <stdbool.h>
 
 #define VMALLOC_BASE    KERNEL_VBASE_VMALLOC          // 0xE1000000
 #define VMALLOC_SIZE    MiB(128)                      // 0x08000000
@@ -17,6 +16,7 @@ typedef struct vm_struct {
 } VMStruct;
 
 void vmalloc_init();
+bool vmalloc_addr(void* ptr);
 void* vmalloc(uint32_t size);
 void vfree(void* addr);
 

@@ -3,6 +3,8 @@
 #include "kmem.h"
 #include "lib.h"
 
+#include <stddef.h>
+
 static VMStruct* vm_list;
 
 void vmalloc_init() {
@@ -42,7 +44,6 @@ void* vmalloc(uint32_t size) {
             return NULL;
         }
 
-        page_set_flag(page, PAGE_VMALLOC);
         map_page_4k(l1_page_table, va + i * PAGE_SIZE, page_paddr(page), 0);
     }
 
@@ -60,7 +61,7 @@ void* vmalloc(uint32_t size) {
 }
 
 void vfree(void* addr) {
-    if (!addr) return;
+    if (!addr || !vmalloc_addr(addr)) return;
 
     uint32_t va = (uint32_t) addr;
 
@@ -77,10 +78,14 @@ void vfree(void* addr) {
         uint32_t paddr = unmap_page_4k(l1_page_table, va + i * PAGE_SIZE);
         if (paddr) {
             Page* page = page_get_p(paddr);
-            page_clear_flag(page, PAGE_VMALLOC);
             page_free(page, 0);
         }
     }
 
     kfree(vm);
+}
+
+bool vmalloc_addr(void* ptr) {
+    uintptr_t p = (uintptr_t) ptr;
+    return (p >= VMALLOC_BASE && p < VMALLOC_END);
 }

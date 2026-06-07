@@ -11,7 +11,6 @@
 typedef enum {
     PAGE_FREE,
     PAGE_SLAB,
-    PAGE_VMALLOC,
 } PageFlag;
 
 typedef struct {
