@@ -44,5 +44,5 @@ rpi-install kernel.img  # (or use your own bootloader / copy to SD card)
 **Note**: The actual rpi_os `kernel.img`, which is created in the root of this project, is not to be confused with the bootloader `kernel.img`, which is created in `bootloader`. The bootloader kernel is the one in the SD card, and you use `rpi-install` to upload the actual kernel onto the Pi.
 
 ## Using this repo as a library
-A couple of my other projects build off of this repository, using it as a library. You can reference my [Gaussian splatting](https://github.com/justiny7/pigs/tree/main) or [exposure fusion pipeline](https://github.com/justiny7/jankencamera/tree/main) projects to see how to do so - it just requires some minor tweaks in the `Makefile`!
+A couple of my other projects build off of this repository, using it as a library. You can reference my [Gaussian splatting](https://github.com/justiny7/pigs/tree/main) or [exposure fusion pipeline](https://github.com/justiny7/jankencamera/tree/main) projects to see how to do so - it just requires some minor tweaks in the Makefile!
 
