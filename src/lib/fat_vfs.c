@@ -21,12 +21,6 @@ static int fat32_read(File* f, void* buf, uint32_t n) {
     memcpy(buf, temp_buf + f->offset, n);
     kfree(temp_buf);
 
-    printk("read:\n");
-    for (int i=0; i < n; i++) {
-        printk("%c", ((char*)buf)[i]);
-    }
-    printk("\n");
-
     f->offset += n;
     return n;
 }

@@ -21,7 +21,7 @@ static bpb_t* bpb;
 static uint32_t fat_cache_sector;
 static uint8_t* fat_cache;
 
-static uint32_t fatdir_get_cluster(fatdir_t* dir) {
+static uint32_t fatdir_get_cluster(const fatdir_t* dir) {
     return ((uint32_t) dir->ch << 16) | dir->cl;
 }
 static uint32_t cluster_to_lba(uint32_t cluster) {
